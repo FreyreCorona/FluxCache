@@ -1,6 +1,10 @@
 package store
 
-import "sync"
+import (
+	"sort"
+	"strings"
+	"sync"
+)
 
 type artLeaf struct {
 	key   string
@@ -223,6 +227,9 @@ func (s *ARTStore) splitPrefix(n *artNode, depth int, key, value string) {
 }
 
 func (s *ARTStore) splitPrefixAt(n *artNode, depth, mismatch int, key, value string) {
+	oldPrefix := n.prefix
+	pxLen := len(oldPrefix)
+
 	newNode := &artNode{
 		nodeType: n.nodeType,
 		keys:     n.keys,
@@ -230,24 +237,27 @@ func (s *ARTStore) splitPrefixAt(n *artNode, depth, mismatch int, key, value str
 		index:    n.index,
 		leaf:     n.leaf,
 	}
-	if len(n.prefix) > 0 {
-		newNode.prefix = make([]byte, len(n.prefix)-mismatch-1)
-		copy(newNode.prefix, n.prefix[mismatch+1:])
+	if mismatch+1 < pxLen {
+		newNode.prefix = make([]byte, pxLen-mismatch-1)
+		copy(newNode.prefix, oldPrefix[mismatch+1:])
 	}
 
-	childByte := n.prefix[mismatch]
-	newByte := key[depth+mismatch]
-	if depth+mismatch >= len(key) {
-		newByte = 0
+	childByte := oldPrefix[mismatch]
+	newByte := byte(0)
+	if depth+mismatch < len(key) {
+		newByte = key[depth+mismatch]
 	}
 
 	n.leaf = nil
 	n.nodeType = artNode4
 	n.keys = make([]byte, 0, 4)
 	n.children = make([]*artNode, 0, 4)
-	n.prefix = make([]byte, mismatch)
-	copy(n.prefix, newNode.prefix[:0])
-	n.prefix = newNode.prefix[:mismatch]
+	if mismatch > 0 {
+		n.prefix = make([]byte, mismatch)
+		copy(n.prefix, oldPrefix[:mismatch])
+	} else {
+		n.prefix = nil
+	}
 
 	s.addChild(n, childByte, newNode)
 	s.addChild(n, newByte, &artNode{leaf: &artLeaf{key: key, value: value}})
@@ -390,6 +400,110 @@ func (s *ARTStore) HGetAll(hash string) map[string]string {
 }
 
 func (s *ARTStore) Close() error { return nil }
+
+func (s *ARTStore) PrefixKeys(prefix string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.root == nil {
+		return nil
+	}
+
+	n := s.root
+	depth := 0
+	for n.leaf == nil {
+		if n.prefix != nil {
+			pxLen := len(n.prefix)
+			if depth+pxLen > len(prefix) {
+				if string(n.prefix[:len(prefix)-depth]) == prefix[depth:] {
+					return s.collectKeys(n)
+				}
+				return nil
+			}
+			if string(n.prefix) != prefix[depth:depth+pxLen] {
+				return nil
+			}
+			depth += pxLen
+		}
+		if depth >= len(prefix) {
+			return s.collectKeys(n)
+		}
+		n = s.findChild(n, prefix[depth])
+		if n == nil {
+			return nil
+		}
+		depth++
+	}
+	if strings.HasPrefix(n.leaf.key, prefix) {
+		return []string{n.leaf.key}
+	}
+	return nil
+}
+
+func (s *ARTStore) RangeKeys(start, end string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var out []string
+	s.collectRange(s.root, start, end, &out)
+	sort.Strings(out)
+	return out
+}
+
+func (s *ARTStore) collectKeys(n *artNode) []string {
+	if n == nil {
+		return nil
+	}
+	if n.leaf != nil {
+		return []string{n.leaf.key}
+	}
+	var out []string
+	switch n.nodeType {
+	case artNode4, artNode16:
+		for _, child := range n.children {
+			out = append(out, s.collectKeys(child)...)
+		}
+	case artNode48:
+		for i := range n.index {
+			if n.index[i] != artEmptyIndex {
+				out = append(out, s.collectKeys(n.children[n.index[i]])...)
+			}
+		}
+	case artNode256:
+		for _, child := range n.children {
+			out = append(out, s.collectKeys(child)...)
+		}
+	}
+	return out
+}
+
+func (s *ARTStore) collectRange(n *artNode, start, end string, out *[]string) {
+	if n == nil {
+		return
+	}
+	if n.leaf != nil {
+		if n.leaf.key >= start && n.leaf.key <= end {
+			*out = append(*out, n.leaf.key)
+		}
+		return
+	}
+	switch n.nodeType {
+	case artNode4, artNode16:
+		for _, child := range n.children {
+			s.collectRange(child, start, end, out)
+		}
+	case artNode48:
+		for i := range n.index {
+			if n.index[i] != artEmptyIndex {
+				s.collectRange(n.children[n.index[i]], start, end, out)
+			}
+		}
+	case artNode256:
+		for _, child := range n.children {
+			s.collectRange(child, start, end, out)
+		}
+	}
+}
 
 func min(a, b int) int {
 	if a < b {

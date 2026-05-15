@@ -8,3 +8,9 @@ type Store interface {
 	HGetAll(hash string) map[string]string
 	Close() error
 }
+
+type OrderedStore interface {
+	Store
+	PrefixKeys(prefix string) []string
+	RangeKeys(start, end string) []string
+}

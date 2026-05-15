@@ -2,6 +2,7 @@ package store
 
 import (
 	"sort"
+	"strings"
 	"sync"
 )
 
@@ -197,6 +198,44 @@ func (s *BPTreeStore) HGetAll(hash string) map[string]string {
 }
 
 func (s *BPTreeStore) Close() error { return nil }
+
+func (s *BPTreeStore) PrefixKeys(prefix string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	leaf := s.searchLeaf(prefix)
+	var out []string
+	for leaf != nil {
+		for _, k := range leaf.keys {
+			if strings.HasPrefix(k, prefix) {
+				out = append(out, k)
+			} else if k > prefix && !strings.HasPrefix(k, prefix) {
+				return out
+			}
+		}
+		leaf = leaf.next
+	}
+	return out
+}
+
+func (s *BPTreeStore) RangeKeys(start, end string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	leaf := s.searchLeaf(start)
+	var out []string
+	for leaf != nil {
+		for _, k := range leaf.keys {
+			if k >= start && k <= end {
+				out = append(out, k)
+			} else if k > end {
+				return out
+			}
+		}
+		leaf = leaf.next
+	}
+	return out
+}
 
 func insertAt[S ~[]E, E any](s S, idx int, v E) S {
 	s = append(s, *new(E))

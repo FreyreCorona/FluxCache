@@ -2,6 +2,7 @@ package store
 
 import (
 	"math/rand/v2"
+	"strings"
 	"sync"
 )
 
@@ -129,3 +130,45 @@ func (s *SkipListStore) HGetAll(hash string) map[string]string {
 }
 
 func (s *SkipListStore) Close() error { return nil }
+
+func (s *SkipListStore) PrefixKeys(prefix string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	curr := s.head
+	for i := s.level - 1; i >= 0; i-- {
+		for curr.next[i] != nil && curr.next[i].key < prefix {
+			curr = curr.next[i]
+		}
+	}
+	curr = curr.next[0]
+
+	var out []string
+	for curr != nil && strings.HasPrefix(curr.key, prefix) {
+		out = append(out, curr.key)
+		curr = curr.next[0]
+	}
+	return out
+}
+
+func (s *SkipListStore) RangeKeys(start, end string) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	curr := s.head
+	for i := s.level - 1; i >= 0; i-- {
+		for curr.next[i] != nil && curr.next[i].key < start {
+			curr = curr.next[i]
+		}
+	}
+	curr = curr.next[0]
+
+	var out []string
+	for curr != nil && curr.key <= end {
+		if curr.key >= start {
+			out = append(out, curr.key)
+		}
+		curr = curr.next[0]
+	}
+	return out
+}

@@ -156,6 +156,81 @@ func TestSkipListStore(t *testing.T) {
 	testStore(t, func() store.Store { return store.NewSkipListStore() })
 }
 
+func testOrderedStore(t *testing.T, newStore func() store.OrderedStore) {
+	t.Helper()
+
+	t.Run("PrefixKeys", func(t *testing.T) {
+		s := newStore()
+		s.Set("apple", "1")
+		s.Set("application", "2")
+		s.Set("appetite", "3")
+		s.Set("banana", "4")
+
+		keys := s.PrefixKeys("app")
+		if len(keys) != 3 {
+			t.Fatalf("expected 3 keys with prefix 'app', got %d: %v", len(keys), keys)
+		}
+	})
+
+	t.Run("PrefixKeysNoMatch", func(t *testing.T) {
+		s := newStore()
+		s.Set("foo", "1")
+		s.Set("bar", "2")
+
+		keys := s.PrefixKeys("nonexistent")
+		if len(keys) != 0 {
+			t.Fatalf("expected 0 keys, got %d", len(keys))
+		}
+	})
+
+	t.Run("RangeKeys", func(t *testing.T) {
+		s := newStore()
+		s.Set("a", "1")
+		s.Set("b", "2")
+		s.Set("c", "3")
+		s.Set("d", "4")
+		s.Set("e", "5")
+
+		keys := s.RangeKeys("b", "d")
+		if len(keys) != 3 {
+			t.Fatalf("expected 3 keys in [b,d], got %d: %v", len(keys), keys)
+		}
+	})
+
+	t.Run("RangeKeysEmpty", func(t *testing.T) {
+		s := newStore()
+		s.Set("a", "1")
+
+		keys := s.RangeKeys("z", "zz")
+		if len(keys) != 0 {
+			t.Fatalf("expected 0 keys, got %d", len(keys))
+		}
+	})
+
+	t.Run("RangeKeysAll", func(t *testing.T) {
+		s := newStore()
+		s.Set("k1", "v1")
+		s.Set("k2", "v2")
+
+		keys := s.RangeKeys("", "{")
+		if len(keys) != 2 {
+			t.Fatalf("expected 2 keys, got %d: %v", len(keys), keys)
+		}
+	})
+}
+
+func TestSkipListStoreOrdered(t *testing.T) {
+	testOrderedStore(t, func() store.OrderedStore { return store.NewSkipListStore() })
+}
+
+func TestBPTreeStoreOrdered(t *testing.T) {
+	testOrderedStore(t, func() store.OrderedStore { return store.NewBPTreeStore() })
+}
+
+func TestARTStoreOrdered(t *testing.T) {
+	testOrderedStore(t, func() store.OrderedStore { return store.NewARTStore() })
+}
+
 func TestCRDTStoreMerge(t *testing.T) {
 	a := store.NewCRDTStore()
 	b := store.NewCRDTStore()
