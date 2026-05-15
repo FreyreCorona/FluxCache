@@ -15,6 +15,9 @@ import (
 	"github.com/FreyreCorona/FluxCache/resp"
 )
 
+// version is set at build time via -ldflags=-X main.version=<tag>
+var version string
+
 // main loads the config, builds the store/persistence/network, and starts the server with graceful shutdown.
 func main() {
 	cfgPath := "config.yaml"
