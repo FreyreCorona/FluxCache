@@ -1,17 +1,17 @@
-package ttl_test
+package evict_test
 
 import (
 	"testing"
 	"time"
 
+	"github.com/FreyreCorona/FluxCache/evict"
 	"github.com/FreyreCorona/FluxCache/store"
-	"github.com/FreyreCorona/FluxCache/ttl"
 )
 
 
 func TestTTLStore(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
+	ts := store.NewTTLStore(inner)
 
 	ts.Set("k", "v")
 	val, ok := ts.Get("k")
@@ -22,7 +22,7 @@ func TestTTLStore(t *testing.T) {
 
 func TestTTLStoreExpiry(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
+	ts := store.NewTTLStore(inner)
 
 	ts.SetWithTTL("k", "v", 50*time.Millisecond)
 	val, ok := ts.Get("k")
@@ -39,7 +39,7 @@ func TestTTLStoreExpiry(t *testing.T) {
 
 func TestTTLStoreExpire(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
+	ts := store.NewTTLStore(inner)
 
 	ts.Set("k", "v")
 	if ok := ts.Expire("k", 50*time.Millisecond); !ok {
@@ -55,7 +55,7 @@ func TestTTLStoreExpire(t *testing.T) {
 
 func TestTTLStoreExpireMissing(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
+	ts := store.NewTTLStore(inner)
 
 	if ok := ts.Expire("nonexistent", time.Second); ok {
 		t.Fatal("expected Expire on missing key to return false")
@@ -64,7 +64,7 @@ func TestTTLStoreExpireMissing(t *testing.T) {
 
 func TestTTLStoreTTL(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
+	ts := store.NewTTLStore(inner)
 
 	ts.Set("k", "v")
 	if d := ts.TTL("k"); d != -2 {
@@ -80,7 +80,7 @@ func TestTTLStoreTTL(t *testing.T) {
 
 func TestTTLStoreTTLExpired(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
+	ts := store.NewTTLStore(inner)
 
 	ts.SetWithTTL("k", "v", 10*time.Millisecond)
 	time.Sleep(50 * time.Millisecond)
@@ -91,7 +91,7 @@ func TestTTLStoreTTLExpired(t *testing.T) {
 
 func TestTTLStoreDel(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
+	ts := store.NewTTLStore(inner)
 
 	ts.SetWithTTL("k", "v", time.Hour)
 	ts.Del("k")
@@ -106,7 +106,7 @@ func TestTTLStoreDel(t *testing.T) {
 
 func TestTTLStoreActiveSweep(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
+	ts := store.NewTTLStore(inner)
 
 	ts.SetWithTTL("k1", "v1", 10*time.Millisecond)
 	ts.SetWithTTL("k2", "v2", 10*time.Millisecond)
@@ -125,7 +125,7 @@ func TestTTLStoreActiveSweep(t *testing.T) {
 
 func TestTTLStoreHashExpiry(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
+	ts := store.NewTTLStore(inner)
 
 	ts.SetWithTTL("h", "v", 50*time.Millisecond)
 	time.Sleep(100 * time.Millisecond)
@@ -138,8 +138,8 @@ func TestTTLStoreHashExpiry(t *testing.T) {
 
 func TestEvictionLRU(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
-	ts.SetEvictionPolicy(ttl.NewLRUPolicy(), 2)
+	ts := store.NewTTLStore(inner)
+	ts.SetEvictionPolicy(evict.NewLRUPolicy(), 2)
 
 	ts.Set("a", "1")
 	ts.Set("b", "2")
@@ -159,8 +159,8 @@ func TestEvictionLRU(t *testing.T) {
 
 func TestEvictionLFU(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
-	ts.SetEvictionPolicy(ttl.NewLFUPolicy(), 2)
+	ts := store.NewTTLStore(inner)
+	ts.SetEvictionPolicy(evict.NewLFUPolicy(), 2)
 
 	ts.Set("a", "1")
 	ts.Set("b", "2")
@@ -177,8 +177,8 @@ func TestEvictionLFU(t *testing.T) {
 
 func TestEvictionTTL(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
-	ts.SetEvictionPolicy(ttl.NewTTLPolicy(), 2)
+	ts := store.NewTTLStore(inner)
+	ts.SetEvictionPolicy(evict.NewTTLPolicy(), 2)
 
 	ts.SetWithTTL("a", "1", 10*time.Minute)
 	ts.SetWithTTL("b", "2", 1*time.Minute)
@@ -196,8 +196,8 @@ func TestEvictionTTL(t *testing.T) {
 
 func TestEvictionRandom(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
-	ts.SetEvictionPolicy(ttl.NewRandomPolicy(), 2)
+	ts := store.NewTTLStore(inner)
+	ts.SetEvictionPolicy(evict.NewRandomPolicy(), 2)
 
 	ts.Set("a", "1")
 	ts.Set("b", "2")
@@ -206,8 +206,8 @@ func TestEvictionRandom(t *testing.T) {
 
 func TestEvictionNoEviction(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
-	ts.SetEvictionPolicy(ttl.NewNoEviction(), 2)
+	ts := store.NewTTLStore(inner)
+	ts.SetEvictionPolicy(evict.NewNoEviction(), 2)
 
 	ts.Set("a", "1")
 	ts.Set("b", "2")
@@ -221,8 +221,8 @@ func TestEvictionNoEviction(t *testing.T) {
 
 func TestEvictionMaxKeysZero(t *testing.T) {
 	inner := store.NewMapStore()
-	ts := ttl.NewTTLStore(inner)
-	ts.SetEvictionPolicy(ttl.NewLRUPolicy(), 0)
+	ts := store.NewTTLStore(inner)
+	ts.SetEvictionPolicy(evict.NewLRUPolicy(), 0)
 
 	for i := 0; i < 100; i++ {
 		ts.Set(string(rune('a'+i%26)), "v")

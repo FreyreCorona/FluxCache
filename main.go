@@ -8,7 +8,6 @@ import (
 	"github.com/FreyreCorona/FluxCache/persistence"
 	"github.com/FreyreCorona/FluxCache/resp"
 	"github.com/FreyreCorona/FluxCache/store"
-	"github.com/FreyreCorona/FluxCache/ttl"
 )
 
 func main() {
@@ -20,7 +19,7 @@ func main() {
 		return
 	}
 
-	s := ttl.NewTTLStore(store.NewMapStore())
+	s := store.NewTTLStore(store.NewMapStore())
 	p, err := persistence.NewAOF("database.aof")
 	if err != nil {
 		fmt.Println(err)

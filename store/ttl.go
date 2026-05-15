@@ -1,35 +1,35 @@
-package ttl
+package store
 
 import (
 	"sync"
 	"time"
 
-	"github.com/FreyreCorona/FluxCache/store"
+	"github.com/FreyreCorona/FluxCache/evict"
 )
 
 type TTLStore struct {
-	inner    store.Store
+	inner    Store
 	mu       sync.Mutex
 	expireAt map[string]time.Time
 	allKeys  map[string]struct{}
-	policy   EvictionPolicy
+	policy   evict.EvictionPolicy
 	maxKeys  int
 	done     chan struct{}
 }
 
-func NewTTLStore(inner store.Store) *TTLStore {
+func NewTTLStore(inner Store) *TTLStore {
 	t := &TTLStore{
 		inner:    inner,
 		expireAt: make(map[string]time.Time),
 		allKeys:  make(map[string]struct{}),
-		policy:   NewNoEviction(),
+		policy:   &evict.NoEviction{},
 		done:     make(chan struct{}),
 	}
 	go t.sweepLoop()
 	return t
 }
 
-func (t *TTLStore) SetEvictionPolicy(p EvictionPolicy, maxKeys int) {
+func (t *TTLStore) SetEvictionPolicy(p evict.EvictionPolicy, maxKeys int) {
 	t.mu.Lock()
 	t.policy = p
 	t.maxKeys = maxKeys
