@@ -65,6 +65,13 @@ func (t *TCP) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite
 	}
 }
 
+func (t *TCP) Addr() net.Addr {
+	if t.ln != nil {
+		return t.ln.Addr()
+	}
+	return nil
+}
+
 func (t *TCP) Close() error {
 	if t.ln != nil {
 		return t.ln.Close()

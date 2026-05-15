@@ -75,6 +75,13 @@ func (t *TLS) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite
 	}
 }
 
+func (t *TLS) Addr() net.Addr {
+	if t.ln != nil {
+		return t.ln.Addr()
+	}
+	return nil
+}
+
 func (t *TLS) Close() error {
 	if t.ln != nil {
 		return t.ln.Close()

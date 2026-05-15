@@ -68,6 +68,13 @@ func (u *Unix) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrit
 	}
 }
 
+func (u *Unix) Addr() net.Addr {
+	if u.ln != nil {
+		return u.ln.Addr()
+	}
+	return nil
+}
+
 func (u *Unix) Close() error {
 	if u.ln != nil {
 		return u.ln.Close()

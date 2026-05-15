@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 
@@ -11,6 +12,7 @@ import (
 
 type HTTP struct {
 	addr string
+	ln   net.Listener
 	srv  *http.Server
 }
 
@@ -19,10 +21,20 @@ func NewHTTP(addr string) *HTTP {
 }
 
 func (h *HTTP) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", h.handleCommand(handlers, onWrite))
-	h.srv = &http.Server{Addr: h.addr, Handler: mux}
-	return h.srv.ListenAndServe()
+	ln, err := net.Listen("tcp", h.addr)
+	if err != nil {
+		return fmt.Errorf("http: listen: %w", err)
+	}
+	h.ln = ln
+	h.srv = &http.Server{Handler: http.HandlerFunc(h.handleCommand(handlers, onWrite))}
+	return h.srv.Serve(ln)
+}
+
+func (h *HTTP) Addr() net.Addr {
+	if h.ln != nil {
+		return h.ln.Addr()
+	}
+	return nil
 }
 
 func (h *HTTP) Close() error {

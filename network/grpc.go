@@ -41,6 +41,13 @@ func (g *GRPC) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error 
 	return g.srv.Serve(ln)
 }
 
+func (g *GRPC) Addr() net.Addr {
+	if g.ln != nil {
+		return g.ln.Addr()
+	}
+	return nil
+}
+
 func (g *GRPC) Close() error {
 	if g.srv != nil {
 		g.srv.GracefulStop()
