@@ -1,18 +1,19 @@
 package main
 
 import (
-	"sync"
-
 	"github.com/FreyreCorona/FluxCache/resp"
+	"github.com/FreyreCorona/FluxCache/store"
 )
 
-var Handlers = map[string]func([]resp.Value) resp.Value{
-	"PING":    ping,
-	"SET":     set,
-	"GET":     get,
-	"HSET":    hset,
-	"HGET":    hget,
-	"HGETALL": hgetall,
+func NewHandlers(s store.Store) map[string]func([]resp.Value) resp.Value {
+	return map[string]func([]resp.Value) resp.Value{
+		"PING":    ping,
+		"SET":     setHandler(s),
+		"GET":     getHandler(s),
+		"HSET":    hsetHandler(s),
+		"HGET":    hgetHandler(s),
+		"HGETALL": hgetallHandler(s),
+	}
 }
 
 func ping(args []resp.Value) resp.Value {
@@ -22,103 +23,66 @@ func ping(args []resp.Value) resp.Value {
 	return resp.Value{Type: resp.TypeString, Str: args[0].Bulk}
 }
 
-var SETs = map[string]string{}
-var SETsMu = sync.RWMutex{}
-
-func set(args []resp.Value) resp.Value {
-	if len(args) != 2 {
-		return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'set' command"}
+func setHandler(s store.Store) func([]resp.Value) resp.Value {
+	return func(args []resp.Value) resp.Value {
+		if len(args) != 2 {
+			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'set' command"}
+		}
+		s.Set(args[0].Bulk, args[1].Bulk)
+		return resp.Value{Type: resp.TypeString, Str: "OK"}
 	}
-
-	key := args[0].Bulk
-	value := args[1].Bulk
-
-	SETsMu.Lock()
-	SETs[key] = value
-	SETsMu.Unlock()
-
-	return resp.Value{Type: resp.TypeString, Str: "OK"}
 }
 
-func get(args []resp.Value) resp.Value {
-	if len(args) != 1 {
-		return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'get' command"}
+func getHandler(s store.Store) func([]resp.Value) resp.Value {
+	return func(args []resp.Value) resp.Value {
+		if len(args) != 1 {
+			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'get' command"}
+		}
+		val, ok := s.Get(args[0].Bulk)
+		if !ok {
+			return resp.Value{Type: resp.TypeNull}
+		}
+		return resp.Value{Type: resp.TypeBulk, Bulk: val}
 	}
-
-	key := args[0].Bulk
-
-	SETsMu.RLock()
-	value, ok := SETs[key]
-	SETsMu.RUnlock()
-
-	if !ok {
-		return resp.Value{Type: resp.TypeNull}
-	}
-
-	return resp.Value{Type: resp.TypeBulk, Bulk: value}
 }
 
-var HSETs = map[string]map[string]string{}
-var HSETsMu = sync.RWMutex{}
-
-func hset(args []resp.Value) resp.Value {
-	if len(args) != 3 {
-		return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hset' command"}
+func hsetHandler(s store.Store) func([]resp.Value) resp.Value {
+	return func(args []resp.Value) resp.Value {
+		if len(args) != 3 {
+			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hset' command"}
+		}
+		s.HSet(args[0].Bulk, args[1].Bulk, args[2].Bulk)
+		return resp.Value{Type: resp.TypeString, Str: "OK"}
 	}
-
-	hash := args[0].Bulk
-	key := args[1].Bulk
-	value := args[2].Bulk
-
-	HSETsMu.Lock()
-	if _, ok := HSETs[hash]; !ok {
-		HSETs[hash] = map[string]string{}
-	}
-	HSETs[hash][key] = value
-	HSETsMu.Unlock()
-
-	return resp.Value{Type: resp.TypeString, Str: "OK"}
 }
 
-func hget(args []resp.Value) resp.Value {
-	if len(args) != 2 {
-		return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hget' command"}
+func hgetHandler(s store.Store) func([]resp.Value) resp.Value {
+	return func(args []resp.Value) resp.Value {
+		if len(args) != 2 {
+			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hget' command"}
+		}
+		val, ok := s.HGet(args[0].Bulk, args[1].Bulk)
+		if !ok {
+			return resp.Value{Type: resp.TypeNull}
+		}
+		return resp.Value{Type: resp.TypeBulk, Bulk: val}
 	}
-
-	hash := args[0].Bulk
-	key := args[1].Bulk
-
-	HSETsMu.RLock()
-	value, ok := HSETs[hash][key]
-	HSETsMu.RUnlock()
-
-	if !ok {
-		return resp.Value{Type: resp.TypeNull}
-	}
-
-	return resp.Value{Type: resp.TypeBulk, Bulk: value}
 }
 
-func hgetall(args []resp.Value) resp.Value {
-	if len(args) != 1 {
-		return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hgetall' command"}
+func hgetallHandler(s store.Store) func([]resp.Value) resp.Value {
+	return func(args []resp.Value) resp.Value {
+		if len(args) != 1 {
+			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hgetall' command"}
+		}
+		h := s.HGetAll(args[0].Bulk)
+		if h == nil {
+			return resp.Value{Type: resp.TypeArray, Array: []resp.Value{}}
+		}
+		values := make([]resp.Value, 0, len(h)*2)
+		for k, v := range h {
+			values = append(values, resp.Value{Type: resp.TypeBulk, Bulk: k})
+			values = append(values, resp.Value{Type: resp.TypeBulk, Bulk: v})
+		}
+		return resp.Value{Type: resp.TypeArray, Array: values}
 	}
-
-	hash := args[0].Bulk
-
-	HSETsMu.RLock()
-	h, ok := HSETs[hash]
-	HSETsMu.RUnlock()
-
-	if !ok {
-		return resp.Value{Type: resp.TypeArray, Array: []resp.Value{}}
-	}
-
-	values := make([]resp.Value, 0, len(h)*2)
-	for k, v := range h {
-		values = append(values, resp.Value{Type: resp.TypeBulk, Bulk: k})
-		values = append(values, resp.Value{Type: resp.TypeBulk, Bulk: v})
-	}
-
-	return resp.Value{Type: resp.TypeArray, Array: values}
 }

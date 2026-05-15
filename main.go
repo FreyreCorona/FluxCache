@@ -5,8 +5,9 @@ import (
 	"net"
 	"strings"
 
-	"github.com/FreyreCorona/FluxCache/aof"
+	"github.com/FreyreCorona/FluxCache/persistence"
 	"github.com/FreyreCorona/FluxCache/resp"
+	"github.com/FreyreCorona/FluxCache/store"
 )
 
 func main() {
@@ -18,25 +19,28 @@ func main() {
 		return
 	}
 
-	aof, err := aof.NewAof("database.aof")
+	s := store.NewMapStore()
+	p, err := persistence.NewAOF("database.aof")
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	defer aof.Close()
+	defer p.Close()
 
-	aof.Read(func(value resp.Value) {
-		command := strings.ToUpper(value.Array[0].Bulk)
-		args := value.Array[1:]
-
-		handler, ok := Handlers[command]
-		if !ok {
-			fmt.Println("Invalid command: ", command)
-			return
+	p.Replay(func(cmd persistence.Command) {
+		switch cmd.Name {
+		case "SET":
+			if len(cmd.Args) >= 2 {
+				s.Set(cmd.Args[0], cmd.Args[1])
+			}
+		case "HSET":
+			if len(cmd.Args) >= 3 {
+				s.HSet(cmd.Args[0], cmd.Args[1], cmd.Args[2])
+			}
 		}
-
-		handler(args)
 	})
+
+	Handlers := NewHandlers(s)
 
 	conn, err := l.Accept()
 	if err != nil {
@@ -76,7 +80,11 @@ func main() {
 		}
 
 		if command == "SET" || command == "HSET" {
-			aof.Write(value)
+			cmd := persistence.Command{Name: command, Args: make([]string, len(args))}
+			for i, arg := range args {
+				cmd.Args[i] = arg.Bulk
+			}
+			p.Write(cmd)
 		}
 
 		result := handler(args)
