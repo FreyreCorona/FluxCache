@@ -178,6 +178,8 @@ func BuildNetwork(cfg ServerConfig) (network.Network, error) {
 	switch cfg.Network {
 	case "tcp":
 		return network.NewTCP(fmt.Sprintf(":%d", cfg.Port)), nil
+	case "http":
+		return network.NewHTTP(fmt.Sprintf(":%d", cfg.Port)), nil
 	default:
 		return nil, fmt.Errorf("config: unknown network %q", cfg.Network)
 	}
