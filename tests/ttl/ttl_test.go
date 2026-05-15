@@ -8,6 +8,7 @@ import (
 	"github.com/FreyreCorona/FluxCache/ttl"
 )
 
+
 func TestTTLStore(t *testing.T) {
 	inner := store.NewMapStore()
 	ts := ttl.NewTTLStore(inner)
@@ -133,4 +134,98 @@ func TestTTLStoreHashExpiry(t *testing.T) {
 	if ok {
 		t.Fatal("expected hash HGet to be expired")
 	}
+}
+
+func TestEvictionLRU(t *testing.T) {
+	inner := store.NewMapStore()
+	ts := ttl.NewTTLStore(inner)
+	ts.SetEvictionPolicy(ttl.NewLRUPolicy(), 2)
+
+	ts.Set("a", "1")
+	ts.Set("b", "2")
+	ts.Get("a")
+	ts.Get("a")
+	ts.Set("c", "3")
+
+	_, ok := ts.Get("b")
+	if ok {
+		t.Fatal("expected b to be evicted (LRU)")
+	}
+	_, ok = ts.Get("a")
+	if !ok {
+		t.Fatal("expected a to remain (accessed twice)")
+	}
+}
+
+func TestEvictionLFU(t *testing.T) {
+	inner := store.NewMapStore()
+	ts := ttl.NewTTLStore(inner)
+	ts.SetEvictionPolicy(ttl.NewLFUPolicy(), 2)
+
+	ts.Set("a", "1")
+	ts.Set("b", "2")
+	ts.Get("a")
+	ts.Get("a")
+	ts.Get("a")
+	ts.Set("c", "3")
+
+	_, ok := ts.Get("b")
+	if ok {
+		t.Fatal("expected b to be evicted (LFU, freq=1)")
+	}
+}
+
+func TestEvictionTTL(t *testing.T) {
+	inner := store.NewMapStore()
+	ts := ttl.NewTTLStore(inner)
+	ts.SetEvictionPolicy(ttl.NewTTLPolicy(), 2)
+
+	ts.SetWithTTL("a", "1", 10*time.Minute)
+	ts.SetWithTTL("b", "2", 1*time.Minute)
+	ts.Set("c", "3")
+
+	_, ok := ts.Get("b")
+	if ok {
+		t.Fatal("expected b to be evicted (nearest TTL)")
+	}
+	_, ok = ts.Get("a")
+	if !ok {
+		t.Fatal("expected a to remain")
+	}
+}
+
+func TestEvictionRandom(t *testing.T) {
+	inner := store.NewMapStore()
+	ts := ttl.NewTTLStore(inner)
+	ts.SetEvictionPolicy(ttl.NewRandomPolicy(), 2)
+
+	ts.Set("a", "1")
+	ts.Set("b", "2")
+	_ = ts
+}
+
+func TestEvictionNoEviction(t *testing.T) {
+	inner := store.NewMapStore()
+	ts := ttl.NewTTLStore(inner)
+	ts.SetEvictionPolicy(ttl.NewNoEviction(), 2)
+
+	ts.Set("a", "1")
+	ts.Set("b", "2")
+	ts.Set("c", "3")
+
+	_, ok := ts.Get("c")
+	if !ok {
+		t.Fatal("expected c to exist (NoEviction)")
+	}
+}
+
+func TestEvictionMaxKeysZero(t *testing.T) {
+	inner := store.NewMapStore()
+	ts := ttl.NewTTLStore(inner)
+	ts.SetEvictionPolicy(ttl.NewLRUPolicy(), 0)
+
+	for i := 0; i < 100; i++ {
+		ts.Set(string(rune('a'+i%26)), "v")
+	}
+	_ = ts
 }
