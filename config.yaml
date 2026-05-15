@@ -6,7 +6,8 @@ server:
   # socket_path: /tmp/fluxcache.sock  # for unix
 
 store:
-  type: map
+  type: map          # map | sharded | syncmap | lockfree | skiplist | bptree | art | crdt | bitcask
+  # file: data.db    # required for bitcask
 
 persistence:
   type: null

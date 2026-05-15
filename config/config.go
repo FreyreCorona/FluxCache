@@ -30,6 +30,7 @@ type ServerConfig struct {
 
 type StoreConfig struct {
 	Type       string `yaml:"type"`
+	File       string `yaml:"file"`
 	ShardCount int    `yaml:"shard_count"`
 	Degree     int    `yaml:"degree"`
 }
@@ -101,34 +102,36 @@ func Load(path string) (*Config, error) {
 	return &cfg, nil
 }
 
-func buildStore(cfg StoreConfig) store.Store {
+func buildStore(cfg StoreConfig) (store.Store, error) {
 	switch cfg.Type {
 	case "map":
-		return store.NewMapStore()
+		return store.NewMapStore(), nil
 	case "sharded":
 		n := cfg.ShardCount
 		if n < 1 {
 			n = 16
 		}
-		return store.NewShardedStore(n)
+		return store.NewShardedStore(n), nil
 	case "syncmap":
-		return store.NewSyncMapStore()
+		return store.NewSyncMapStore(), nil
 	case "lockfree":
 		n := cfg.ShardCount
 		if n < 1 {
 			n = 16
 		}
-		return store.NewLockFreeStore(n)
+		return store.NewLockFreeStore(n), nil
 	case "skiplist":
-		return store.NewSkipListStore()
+		return store.NewSkipListStore(), nil
 	case "bptree":
-		return store.NewBPTreeStore()
+		return store.NewBPTreeStore(), nil
 	case "art":
-		return store.NewARTStore()
+		return store.NewARTStore(), nil
 	case "crdt":
-		return store.NewCRDTStore()
+		return store.NewCRDTStore(), nil
+	case "bitcask":
+		return store.NewBitcaskStore(cfg.File)
 	default:
-		return store.NewMapStore()
+		return store.NewMapStore(), nil
 	}
 }
 
@@ -185,7 +188,10 @@ func buildEvictionPolicy(cfg EvictionConfig) (evict.EvictionPolicy, error) {
 }
 
 func Build(cfg *Config) (*store.TTLStore, persistence.Persistence, error) {
-	inner := buildStore(cfg.Store)
+	inner, err := buildStore(cfg.Store)
+	if err != nil {
+		return nil, nil, err
+	}
 	ts := store.NewTTLStore(inner)
 
 	policy, err := buildEvictionPolicy(cfg.Eviction)
