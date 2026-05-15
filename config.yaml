@@ -1,17 +1,20 @@
 server:
   port: 6379
-  network: tcp          # tcp | tls | unix | http | grpc
-  # cert_file: server.crt   # for tls
-  # key_file: server.key    # for tls
+  network: tcp             # tcp | tls | unix | http | grpc
+  health_port: 8081        # 0 to disable health HTTP server
+  max_connections: 0       # 0 for unlimited
+  max_memory: ""           # e.g. 256MB, 1GB — sets GOMEMLIMIT for GC
+  # cert_file: server.crt  # for tls
+  # key_file: server.key   # for tls
   # socket_path: /tmp/fluxcache.sock  # for unix
 
 store:
-  type: map          # map | sharded | syncmap | lockfree | skiplist | bptree | art | crdt | bitcask
-  # file: data.db    # required for bitcask
+  type: map                 # map | sharded | syncmap | lockfree | skiplist | bptree | art | crdt | bitcask
+  # file: data.db           # required for bitcask
 
 persistence:
-  type: null
+  type: null                # null | aof | wal | rdb | dual | bitcask
 
 eviction:
-  policy: noeviction
-  maxkeys: 0
+  policy: noeviction        # noeviction | allkeys-lru | allkeys-lfu | volatile-lru | volatile-lfu | volatile-ttl | allkeys-random | volatile-random
+  maxkeys: 0                # 0 for unlimited

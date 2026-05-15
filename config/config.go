@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -23,6 +24,9 @@ type Config struct {
 type ServerConfig struct {
 	Port       int    `yaml:"port"`
 	Network    string `yaml:"network"`
+	HealthPort int    `yaml:"health_port"`
+	MaxConns   int    `yaml:"max_connections"`
+	MaxMemory  string `yaml:"max_memory"`
 	CertFile   string `yaml:"cert_file"`
 	KeyFile    string `yaml:"key_file"`
 	SocketPath string `yaml:"socket_path"`
@@ -51,8 +55,9 @@ type EvictionConfig struct {
 func Default() *Config {
 	return &Config{
 		Server: ServerConfig{
-			Port:    6379,
-			Network: "tcp",
+			Port:     6379,
+			Network:  "tcp",
+			MaxConns: 0,
 		},
 		Store: StoreConfig{
 			Type: "map",
@@ -94,6 +99,17 @@ func in(list []string, s string) bool {
 func (c *Config) Validate() error {
 	if c.Server.Port < 1 || c.Server.Port > 65535 {
 		return fmt.Errorf("config: port %d out of range [1-65535]", c.Server.Port)
+	}
+	if c.Server.HealthPort < 0 || c.Server.HealthPort > 65535 {
+		return fmt.Errorf("config: health_port %d out of range [0-65535]", c.Server.HealthPort)
+	}
+	if c.Server.MaxConns < 0 {
+		return fmt.Errorf("config: max_connections must be >= 0")
+	}
+	if c.Server.MaxMemory != "" {
+		if _, err := parseBytes(c.Server.MaxMemory); err != nil {
+			return fmt.Errorf("config: invalid max_memory %q: %v", c.Server.MaxMemory, err)
+		}
 	}
 	if !in(validNetworks, c.Server.Network) {
 		return fmt.Errorf("config: unknown network %q", c.Server.Network)
@@ -287,17 +303,17 @@ func Build(cfg *Config) (*store.TTLStore, persistence.Persistence, error) {
 func BuildNetwork(cfg ServerConfig) (network.Network, error) {
 	switch cfg.Network {
 	case "tcp":
-		return network.NewTCP(fmt.Sprintf(":%d", cfg.Port)), nil
+		return network.NewTCP(fmt.Sprintf(":%d", cfg.Port), cfg.MaxConns), nil
 	case "tls":
 		if cfg.CertFile == "" || cfg.KeyFile == "" {
 			return nil, fmt.Errorf("config: tls requires cert_file and key_file")
 		}
-		return network.NewTLS(fmt.Sprintf(":%d", cfg.Port), cfg.CertFile, cfg.KeyFile), nil
+		return network.NewTLS(fmt.Sprintf(":%d", cfg.Port), cfg.CertFile, cfg.KeyFile, cfg.MaxConns), nil
 	case "unix":
 		if cfg.SocketPath == "" {
 			return nil, fmt.Errorf("config: unix requires socket_path")
 		}
-		return network.NewUnix(cfg.SocketPath), nil
+		return network.NewUnix(cfg.SocketPath, cfg.MaxConns), nil
 	case "http":
 		return network.NewHTTP(fmt.Sprintf(":%d", cfg.Port)), nil
 	case "grpc":
@@ -305,4 +321,53 @@ func BuildNetwork(cfg ServerConfig) (network.Network, error) {
 	default:
 		return nil, fmt.Errorf("config: unknown network %q", cfg.Network)
 	}
+}
+
+func (c *Config) MaxMemoryBytes() (int64, error) {
+	return parseBytes(c.Server.MaxMemory)
+}
+
+func parseBytes(s string) (int64, error) {
+	if len(s) < 2 {
+		return 0, fmt.Errorf("too short")
+	}
+	var mult int64 = 1
+	suffix := s[len(s)-2:]
+	switch suffix {
+	case "KB":
+		mult = 1 << 10
+	case "MB":
+		mult = 1 << 20
+	case "GB":
+		mult = 1 << 30
+	case "TB":
+		mult = 1 << 40
+	default:
+		if s[len(s)-1] == 'B' {
+			return 0, fmt.Errorf("unknown suffix")
+		}
+		mult = 1
+		suffix = s[len(s)-1:]
+		switch suffix {
+		case "K":
+			mult = 1 << 10
+		case "M":
+			mult = 1 << 20
+		case "G":
+			mult = 1 << 30
+		case "T":
+			mult = 1 << 40
+		default:
+			suffix = ""
+		}
+	}
+	numStr := s[:len(s)-len(suffix)]
+	if numStr == "" {
+		return 0, fmt.Errorf("no numeric value")
+	}
+	n, err := strconv.ParseInt(numStr, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	return n * mult, nil
 }

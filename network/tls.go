@@ -10,15 +10,17 @@ import (
 )
 
 type TLS struct {
-	addr    string
-	cert    string
-	key     string
-	config  *tls.Config
-	ln      net.Listener
+	addr     string
+	cert     string
+	key      string
+	config   *tls.Config
+	maxConns int
+	sem      chan struct{}
+	ln       net.Listener
 }
 
-func NewTLS(addr, certFile, keyFile string) *TLS {
-	return &TLS{addr: addr, cert: certFile, key: keyFile}
+func NewTLS(addr, certFile, keyFile string, maxConns int) *TLS {
+	return &TLS{addr: addr, cert: certFile, key: keyFile, maxConns: maxConns}
 }
 
 func (t *TLS) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
@@ -34,17 +36,34 @@ func (t *TLS) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
 	}
 	t.ln = ln
 
+	if t.maxConns > 0 {
+		t.sem = make(chan struct{}, t.maxConns)
+	}
+
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			return fmt.Errorf("tls: accept: %w", err)
 		}
+
+		if t.sem != nil {
+			select {
+			case t.sem <- struct{}{}:
+			default:
+				conn.Close()
+				continue
+			}
+		}
+
 		go t.handleConn(conn, handlers, onWrite)
 	}
 }
 
 func (t *TLS) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite WriteFunc) {
 	defer conn.Close()
+	if t.sem != nil {
+		defer func() { <-t.sem }()
+	}
 
 	for {
 		rd := resp.NewResp(conn)

@@ -1,0 +1,4 @@
+/fluxcache
+*.sock
+*.crt
+*.key

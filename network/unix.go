@@ -10,12 +10,14 @@ import (
 )
 
 type Unix struct {
-	path string
-	ln   net.Listener
+	path     string
+	maxConns int
+	sem      chan struct{}
+	ln       net.Listener
 }
 
-func NewUnix(path string) *Unix {
-	return &Unix{path: path}
+func NewUnix(path string, maxConns int) *Unix {
+	return &Unix{path: path, maxConns: maxConns}
 }
 
 func (u *Unix) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
@@ -27,17 +29,34 @@ func (u *Unix) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error 
 	}
 	u.ln = ln
 
+	if u.maxConns > 0 {
+		u.sem = make(chan struct{}, u.maxConns)
+	}
+
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
 			return fmt.Errorf("unix: accept: %w", err)
 		}
+
+		if u.sem != nil {
+			select {
+			case u.sem <- struct{}{}:
+			default:
+				conn.Close()
+				continue
+			}
+		}
+
 		go u.handleConn(conn, handlers, onWrite)
 	}
 }
 
 func (u *Unix) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite WriteFunc) {
 	defer conn.Close()
+	if u.sem != nil {
+		defer func() { <-u.sem }()
+	}
 
 	for {
 		rd := resp.NewResp(conn)
