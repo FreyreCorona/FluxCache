@@ -9,7 +9,7 @@ services:
       - fluxcache-data:/data
     command: ["/config.yaml"]
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/healthz"]
       interval: 10s
       timeout: 3s
       retries: 3

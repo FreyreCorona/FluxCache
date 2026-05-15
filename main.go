@@ -2,9 +2,7 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -12,6 +10,7 @@ import (
 
 	"github.com/FreyreCorona/FluxCache/config"
 	"github.com/FreyreCorona/FluxCache/handler"
+	"github.com/FreyreCorona/FluxCache/health"
 	"github.com/FreyreCorona/FluxCache/persistence"
 	"github.com/FreyreCorona/FluxCache/resp"
 )
@@ -64,7 +63,7 @@ func main() {
 	defer stop()
 
 	if cfg.Server.HealthPort > 0 {
-		go startHealthServer(cfg.Server.HealthPort, ctx)
+		go health.StartServer(cfg.Server.HealthPort, ctx)
 	}
 
 	fmt.Printf("Listening on port %d\n", cfg.Server.Port)
@@ -96,30 +95,4 @@ func main() {
 	p.Close()
 	s.Close()
 	fmt.Println("done")
-}
-
-func startHealthServer(port int, ctx context.Context) {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	})
-	mux.HandleFunc("/ready", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "ready"})
-	})
-
-	srv := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: mux}
-
-	go func() {
-		<-ctx.Done()
-		srv.Close()
-	}()
-
-	fmt.Printf("Health endpoint on :%d\n", port)
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		fmt.Printf("health: %v\n", err)
-	}
 }
