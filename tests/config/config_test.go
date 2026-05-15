@@ -83,6 +83,110 @@ func TestSaveDefaults(t *testing.T) {
 	_ = data
 }
 
+func TestValidatePortRange(t *testing.T) {
+	cfg := config.Default()
+	cfg.Server.Port = 0
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for port 0")
+	}
+	cfg.Server.Port = 70000
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for port 70000")
+	}
+}
+
+func TestValidateInvalidNetwork(t *testing.T) {
+	cfg := config.Default()
+	cfg.Server.Network = "invalid"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for invalid network")
+	}
+}
+
+func TestValidateTLSRequiresCertKey(t *testing.T) {
+	cfg := config.Default()
+	cfg.Server.Network = "tls"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error: tls requires cert and key")
+	}
+	cfg.Server.CertFile = "cert.pem"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error: tls requires key")
+	}
+	cfg.Server.KeyFile = "key.pem"
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateUnixRequiresSocketPath(t *testing.T) {
+	cfg := config.Default()
+	cfg.Server.Network = "unix"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error: unix requires socket_path")
+	}
+	cfg.Server.SocketPath = "/tmp/test.sock"
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateBitcaskRequiresFile(t *testing.T) {
+	cfg := config.Default()
+	cfg.Store.Type = "bitcask"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error: bitcask requires file")
+	}
+	cfg.Store.File = "data.db"
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidateDualPersistenceRequiresBoth(t *testing.T) {
+	cfg := config.Default()
+	cfg.Persistence.Type = "dual"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error: dual requires primary and secondary")
+	}
+	cfg.Persistence.Primary = &config.PersistenceConfig{Type: "aof", File: "p.aof"}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error: dual requires secondary")
+	}
+	cfg.Persistence.Secondary = &config.PersistenceConfig{Type: "wal", File: "s.wal"}
+	if err := cfg.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestValidatePersistenceRequiresFile(t *testing.T) {
+	cfg := config.Default()
+	cfg.Persistence.Type = "aof"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error: aof requires file")
+	}
+	cfg.Persistence.Type = "rdb"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error: rdb requires file")
+	}
+}
+
+func TestValidateInvalidEviction(t *testing.T) {
+	cfg := config.Default()
+	cfg.Eviction.Policy = "invalid"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for invalid eviction policy")
+	}
+}
+
+func TestValidateInvalidStore(t *testing.T) {
+	cfg := config.Default()
+	cfg.Store.Type = "invalid"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for invalid store type")
+	}
+}
+
 func TestDualPersistenceSaveAndLoad(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "dual.yaml")
 

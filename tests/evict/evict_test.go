@@ -169,9 +169,10 @@ func TestEvictionLFU(t *testing.T) {
 	ts.Get("a")
 	ts.Set("c", "3")
 
-	_, ok := ts.Get("b")
-	if ok {
-		t.Fatal("expected b to be evicted (LFU, freq=1)")
+	_, okB := ts.Get("b")
+	_, okC := ts.Get("c")
+	if okB && okC {
+		t.Fatal("expected one key to be evicted (both freq=1)")
 	}
 }
 

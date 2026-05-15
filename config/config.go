@@ -75,6 +75,74 @@ func (c *Config) Save(path string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
+var (
+	validNetworks     = []string{"tcp", "tls", "unix", "http", "grpc"}
+	validStores       = []string{"map", "sharded", "syncmap", "lockfree", "skiplist", "bptree", "art", "crdt", "bitcask"}
+	validPersistence  = []string{"null", "aof", "wal", "rdb", "dual"}
+	validEvictions    = []string{"noeviction", "allkeys-lru", "allkeys-lfu", "allkeys-random", "volatile-ttl"}
+)
+
+func in(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Config) Validate() error {
+	if c.Server.Port < 1 || c.Server.Port > 65535 {
+		return fmt.Errorf("config: port %d out of range [1-65535]", c.Server.Port)
+	}
+	if !in(validNetworks, c.Server.Network) {
+		return fmt.Errorf("config: unknown network %q", c.Server.Network)
+	}
+	if !in(validStores, c.Store.Type) {
+		return fmt.Errorf("config: unknown store %q", c.Store.Type)
+	}
+	if !in(validPersistence, c.Persistence.Type) {
+		return fmt.Errorf("config: unknown persistence %q", c.Persistence.Type)
+	}
+	if !in(validEvictions, c.Eviction.Policy) {
+		return fmt.Errorf("config: unknown eviction policy %q", c.Eviction.Policy)
+	}
+
+	if c.Store.Type == "bitcask" && c.Store.File == "" {
+		return fmt.Errorf("config: bitcask store requires file path")
+	}
+
+	if c.Server.Network == "tls" {
+		if c.Server.CertFile == "" {
+			return fmt.Errorf("config: tls network requires cert_file")
+		}
+		if c.Server.KeyFile == "" {
+			return fmt.Errorf("config: tls network requires key_file")
+		}
+	}
+
+	if c.Server.Network == "unix" && c.Server.SocketPath == "" {
+		return fmt.Errorf("config: unix network requires socket_path")
+	}
+
+	if c.Persistence.Type == "dual" {
+		if c.Persistence.Primary == nil {
+			return fmt.Errorf("config: dual persistence requires primary")
+		}
+		if c.Persistence.Secondary == nil {
+			return fmt.Errorf("config: dual persistence requires secondary")
+		}
+	}
+
+	if c.Persistence.Type == "aof" || c.Persistence.Type == "wal" || c.Persistence.Type == "rdb" {
+		if c.Persistence.File == "" {
+			return fmt.Errorf("config: %s persistence requires file", c.Persistence.Type)
+		}
+	}
+
+	return nil
+}
+
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -98,6 +166,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Eviction.Policy == "" {
 		cfg.Eviction.Policy = "noeviction"
+	}
+	if err := cfg.Validate(); err != nil {
+		return nil, err
 	}
 	return &cfg, nil
 }
@@ -188,6 +259,9 @@ func buildEvictionPolicy(cfg EvictionConfig) (evict.EvictionPolicy, error) {
 }
 
 func Build(cfg *Config) (*store.TTLStore, persistence.Persistence, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, nil, err
+	}
 	inner, err := buildStore(cfg.Store)
 	if err != nil {
 		return nil, nil, err
