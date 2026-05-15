@@ -15,6 +15,7 @@ import (
 	"github.com/FreyreCorona/FluxCache/resp"
 )
 
+// main loads the config, builds the store/persistence/network, and starts the server with graceful shutdown.
 func main() {
 	cfgPath := "config.yaml"
 	if len(os.Args) > 1 {

@@ -5,11 +5,13 @@ import (
 	"time"
 )
 
+// LRUPolicy implements eviction of the least recently used key.
 type LRUPolicy struct {
 	mu     sync.Mutex
 	access map[string]time.Time
 }
 
+// NewLRUPolicy creates a new LRUPolicy.
 func NewLRUPolicy() *LRUPolicy {
 	return &LRUPolicy{access: make(map[string]time.Time)}
 }

@@ -5,8 +5,10 @@ import (
 	"time"
 )
 
+// RandomPolicy implements eviction of a random key.
 type RandomPolicy struct{}
 
+// NewRandomPolicy creates a new RandomPolicy.
 func NewRandomPolicy() *RandomPolicy { return &RandomPolicy{} }
 
 func (p *RandomPolicy) Name() string { return "allkeys-random" }

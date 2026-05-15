@@ -9,6 +9,7 @@ import (
 	"github.com/FreyreCorona/FluxCache/store"
 )
 
+// NewHandlers returns a map of command names to handler functions for the given store.
 func NewHandlers(s *store.TTLStore) map[string]network.HandlerFunc {
 	return map[string]network.HandlerFunc{
 		"PING":    ping,

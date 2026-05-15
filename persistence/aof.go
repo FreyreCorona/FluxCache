@@ -10,11 +10,13 @@ import (
 	"github.com/FreyreCorona/FluxCache/resp"
 )
 
+// AOF implements append-only file persistence using the RESP protocol.
 type AOF struct {
 	file *os.File
 	mu   sync.Mutex
 }
 
+// NewAOF opens or creates an AOF file at the given path.
 func NewAOF(path string) (*AOF, error) {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
@@ -34,6 +36,7 @@ func NewAOF(path string) (*AOF, error) {
 	return a, nil
 }
 
+// Write appends a marshalled command to the AOF file.
 func (a *AOF) Write(cmd Command) error {
 	v := resp.Value{Type: resp.TypeArray, Array: make([]resp.Value, 0, len(cmd.Args)+1)}
 	v.Array = append(v.Array, resp.Value{Type: resp.TypeBulk, Bulk: cmd.Name})
@@ -47,6 +50,7 @@ func (a *AOF) Write(cmd Command) error {
 	return err
 }
 
+// Replay reads all commands from the AOF file and calls fn for each.
 func (a *AOF) Replay(fn func(Command)) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -80,6 +84,7 @@ func (a *AOF) Replay(fn func(Command)) error {
 	return err
 }
 
+// Close closes the underlying AOF file.
 func (a *AOF) Close() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()

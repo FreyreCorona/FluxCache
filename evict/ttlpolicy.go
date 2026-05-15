@@ -2,8 +2,10 @@ package evict
 
 import "time"
 
+// TTLPolicy implements eviction of the key with the nearest TTL.
 type TTLPolicy struct{}
 
+// NewTTLPolicy creates a new TTLPolicy.
 func NewTTLPolicy() *TTLPolicy { return &TTLPolicy{} }
 
 func (p *TTLPolicy) Name() string { return "volatile-ttl" }

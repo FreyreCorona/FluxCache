@@ -9,6 +9,7 @@ import (
 	"github.com/FreyreCorona/FluxCache/resp"
 )
 
+// Unix is a Unix domain socket network transport.
 type Unix struct {
 	path     string
 	maxConns int
@@ -16,10 +17,12 @@ type Unix struct {
 	ln       net.Listener
 }
 
+// NewUnix creates a new Unix domain socket transport at the given path.
 func NewUnix(path string, maxConns int) *Unix {
 	return &Unix{path: path, maxConns: maxConns}
 }
 
+// Listen starts the Unix socket listener and begins accepting connections.
 func (u *Unix) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
 	os.Remove(u.path)
 
@@ -87,6 +90,7 @@ func (u *Unix) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrit
 	}
 }
 
+// Addr returns the address the listener is bound to.
 func (u *Unix) Addr() net.Addr {
 	if u.ln != nil {
 		return u.ln.Addr()
@@ -94,6 +98,7 @@ func (u *Unix) Addr() net.Addr {
 	return nil
 }
 
+// Close stops the Unix socket listener.
 func (u *Unix) Close() error {
 	if u.ln != nil {
 		return u.ln.Close()

@@ -29,12 +29,14 @@ const (
 	artEmptyIndex = -1
 )
 
+// ARTStore is a thread-safe store backed by an Adaptive Radix Tree with ordered iteration.
 type ARTStore struct {
 	root   *artNode
 	mu     sync.RWMutex
 	hashes map[string]map[string]string
 }
 
+// NewARTStore returns a new ARTStore.
 func NewARTStore() *ARTStore {
 	return &ARTStore{hashes: make(map[string]map[string]string)}
 }

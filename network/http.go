@@ -10,16 +10,19 @@ import (
 	"github.com/FreyreCorona/FluxCache/resp"
 )
 
+// HTTP is an HTTP network transport.
 type HTTP struct {
 	addr string
 	ln   net.Listener
 	srv  *http.Server
 }
 
+// NewHTTP creates a new HTTP transport that listens on the given address.
 func NewHTTP(addr string) *HTTP {
 	return &HTTP{addr: addr}
 }
 
+// Listen starts the HTTP server and begins serving requests.
 func (h *HTTP) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
 	ln, err := net.Listen("tcp", h.addr)
 	if err != nil {
@@ -30,6 +33,7 @@ func (h *HTTP) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error 
 	return h.srv.Serve(ln)
 }
 
+// Addr returns the address the server is listening on.
 func (h *HTTP) Addr() net.Addr {
 	if h.ln != nil {
 		return h.ln.Addr()
@@ -37,6 +41,7 @@ func (h *HTTP) Addr() net.Addr {
 	return nil
 }
 
+// Close shuts down the HTTP server.
 func (h *HTTP) Close() error {
 	if h.srv != nil {
 		return h.srv.Close()

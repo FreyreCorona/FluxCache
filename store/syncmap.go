@@ -2,11 +2,13 @@ package store
 
 import "sync"
 
+// SyncMapStore is a thread-safe store backed by sync.Map.
 type SyncMapStore struct {
 	strings sync.Map
 	hashes  sync.Map
 }
 
+// NewSyncMapStore returns a new SyncMapStore.
 func NewSyncMapStore() *SyncMapStore {
 	return &SyncMapStore{}
 }

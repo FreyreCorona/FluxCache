@@ -10,6 +10,7 @@ import (
 const rdbMagic = "FLXCRDB"
 const rdbVersion uint32 = 1
 
+// RDB implements periodic snapshot persistence to a binary file.
 type RDB struct {
 	mu        sync.Mutex
 	path      string
@@ -19,6 +20,7 @@ type RDB struct {
 	done      chan struct{}
 }
 
+// NewRDB creates an RDB snapshotter with a default 5-second interval.
 func NewRDB(path string) (*RDB, error) {
 	r := &RDB{
 		path:     path,
@@ -31,6 +33,7 @@ func NewRDB(path string) (*RDB, error) {
 	return r, nil
 }
 
+// NewRDBWithInterval creates an RDB snapshotter with a custom interval.
 func NewRDBWithInterval(path string, interval time.Duration) (*RDB, error) {
 	r, err := NewRDB(path)
 	if err != nil {
@@ -40,6 +43,7 @@ func NewRDBWithInterval(path string, interval time.Duration) (*RDB, error) {
 	return r, nil
 }
 
+// Write records a command in the in-memory state for the next snapshot.
 func (r *RDB) Write(cmd Command) error {
 	r.mu.Lock()
 	switch cmd.Name {
@@ -61,6 +65,7 @@ func (r *RDB) Write(cmd Command) error {
 	return nil
 }
 
+// Snapshot writes the current in-memory state to disk immediately.
 func (r *RDB) Snapshot() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -125,6 +130,7 @@ func (r *RDB) snapshotLoop() {
 	}
 }
 
+// Replay reads the snapshot file and replays its commands via fn.
 func (r *RDB) Replay(fn func(Command)) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -210,6 +216,7 @@ func readString(f *os.File) string {
 	return string(buf)
 }
 
+// Close stops the snapshot loop.
 func (r *RDB) Close() error {
 	close(r.done)
 	return nil

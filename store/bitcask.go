@@ -9,6 +9,7 @@ import (
 
 const bitcaskMagic = "FCBT01"
 
+// BitcaskStore is a durable store backed by an append-only log file (Bitcask model).
 type BitcaskStore struct {
 	mu      sync.RWMutex
 	file    *os.File
@@ -17,6 +18,7 @@ type BitcaskStore struct {
 	hashes  map[string]map[string]string
 }
 
+// NewBitcaskStore opens or creates the Bitcask data file at the given path.
 func NewBitcaskStore(path string) (*BitcaskStore, error) {
 	s := &BitcaskStore{
 		path:    path,

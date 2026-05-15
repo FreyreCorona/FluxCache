@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// StartServer serves /healthz and /ready HTTP endpoints on the given port until ctx is cancelled.
 func StartServer(port int, ctx context.Context) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {

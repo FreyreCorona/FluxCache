@@ -8,6 +8,7 @@ import (
 	"github.com/FreyreCorona/FluxCache/resp"
 )
 
+// TCP is a plain TCP network transport.
 type TCP struct {
 	addr     string
 	maxConns int
@@ -15,10 +16,12 @@ type TCP struct {
 	ln       net.Listener
 }
 
+// NewTCP creates a new TCP transport that listens on the given address.
 func NewTCP(addr string, maxConns int) *TCP {
 	return &TCP{addr: addr, maxConns: maxConns}
 }
 
+// Listen starts the TCP listener and begins accepting connections.
 func (t *TCP) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
 	ln, err := net.Listen("tcp", t.addr)
 	if err != nil {
@@ -84,6 +87,7 @@ func (t *TCP) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite
 	}
 }
 
+// Addr returns the address the listener is bound to.
 func (t *TCP) Addr() net.Addr {
 	if t.ln != nil {
 		return t.ln.Addr()
@@ -91,6 +95,7 @@ func (t *TCP) Addr() net.Addr {
 	return nil
 }
 
+// Close stops the TCP listener.
 func (t *TCP) Close() error {
 	if t.ln != nil {
 		return t.ln.Close()

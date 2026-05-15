@@ -2,12 +2,14 @@ package store
 
 import "sync"
 
+// MapStore is a thread-safe in-memory store backed by Go maps.
 type MapStore struct {
 	strings map[string]string
 	hashes  map[string]map[string]string
 	mu      sync.RWMutex
 }
 
+// NewMapStore returns a new MapStore.
 func NewMapStore() *MapStore {
 	return &MapStore{
 		strings: make(map[string]string),

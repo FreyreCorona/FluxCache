@@ -14,16 +14,19 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
+// GRPC is a gRPC network transport.
 type GRPC struct {
 	addr string
 	srv  *grpc.Server
 	ln   net.Listener
 }
 
+// NewGRPC creates a new gRPC transport that listens on the given address.
 func NewGRPC(addr string) *GRPC {
 	return &GRPC{addr: addr}
 }
 
+// Listen starts the gRPC server and begins serving requests.
 func (g *GRPC) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
 	ln, err := net.Listen("tcp", g.addr)
 	if err != nil {
@@ -41,6 +44,7 @@ func (g *GRPC) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error 
 	return g.srv.Serve(ln)
 }
 
+// Addr returns the address the server is listening on.
 func (g *GRPC) Addr() net.Addr {
 	if g.ln != nil {
 		return g.ln.Addr()
@@ -48,6 +52,7 @@ func (g *GRPC) Addr() net.Addr {
 	return nil
 }
 
+// Close gracefully stops the gRPC server.
 func (g *GRPC) Close() error {
 	if g.srv != nil {
 		g.srv.GracefulStop()

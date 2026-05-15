@@ -14,6 +14,7 @@ import (
 	"github.com/FreyreCorona/FluxCache/store"
 )
 
+// Config holds the top-level application configuration.
 type Config struct {
 	Server      ServerConfig      `yaml:"server"`
 	Store       StoreConfig       `yaml:"store"`
@@ -21,6 +22,7 @@ type Config struct {
 	Eviction    EvictionConfig    `yaml:"eviction"`
 }
 
+// ServerConfig configures the network server.
 type ServerConfig struct {
 	Port       int    `yaml:"port"`
 	Network    string `yaml:"network"`
@@ -32,6 +34,7 @@ type ServerConfig struct {
 	SocketPath string `yaml:"socket_path"`
 }
 
+// StoreConfig configures the internal key-value store.
 type StoreConfig struct {
 	Type       string `yaml:"type"`
 	File       string `yaml:"file"`
@@ -39,6 +42,7 @@ type StoreConfig struct {
 	Degree     int    `yaml:"degree"`
 }
 
+// PersistenceConfig configures data persistence.
 type PersistenceConfig struct {
 	Type      string             `yaml:"type"`
 	File      string             `yaml:"file"`
@@ -47,11 +51,13 @@ type PersistenceConfig struct {
 	Secondary *PersistenceConfig `yaml:"secondary"`
 }
 
+// EvictionConfig configures the eviction policy.
 type EvictionConfig struct {
 	Policy  string `yaml:"policy"`
 	MaxKeys int    `yaml:"maxkeys"`
 }
 
+// Default returns a new Config with sensible defaults.
 func Default() *Config {
 	return &Config{
 		Server: ServerConfig{
@@ -72,6 +78,7 @@ func Default() *Config {
 	}
 }
 
+// Save writes the configuration as YAML to the given file path.
 func (c *Config) Save(path string) error {
 	data, err := yaml.Marshal(c)
 	if err != nil {
@@ -96,6 +103,7 @@ func in(list []string, s string) bool {
 	return false
 }
 
+// Validate checks all configuration fields and returns an error if any are invalid.
 func (c *Config) Validate() error {
 	if c.Server.Port < 1 || c.Server.Port > 65535 {
 		return fmt.Errorf("config: port %d out of range [1-65535]", c.Server.Port)
@@ -159,6 +167,7 @@ func (c *Config) Validate() error {
 	return nil
 }
 
+// Load reads a YAML configuration file and returns a validated Config.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -274,6 +283,7 @@ func buildEvictionPolicy(cfg EvictionConfig) (evict.EvictionPolicy, error) {
 	}
 }
 
+// Build creates the store and persistence layer from the given config.
 func Build(cfg *Config) (*store.TTLStore, persistence.Persistence, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, nil, err
@@ -300,6 +310,7 @@ func Build(cfg *Config) (*store.TTLStore, persistence.Persistence, error) {
 	return ts, p, nil
 }
 
+// BuildNetwork creates the network layer from the given server config.
 func BuildNetwork(cfg ServerConfig) (network.Network, error) {
 	switch cfg.Network {
 	case "tcp":
@@ -323,6 +334,7 @@ func BuildNetwork(cfg ServerConfig) (network.Network, error) {
 	}
 }
 
+// MaxMemoryBytes returns the max memory setting parsed as bytes.
 func (c *Config) MaxMemoryBytes() (int64, error) {
 	return parseBytes(c.Server.MaxMemory)
 }

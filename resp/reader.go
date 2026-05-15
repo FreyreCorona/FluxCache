@@ -6,10 +6,12 @@ import (
 	"strconv"
 )
 
+// Resp reads and parses RESP protocol data from an io.Reader.
 type Resp struct {
 	reader *bufio.Reader
 }
 
+// NewResp creates a new Resp that reads from the given io.Reader.
 func NewResp(rd io.Reader) *Resp {
 	return &Resp{reader: bufio.NewReader(rd)}
 }
@@ -41,6 +43,7 @@ func (r *Resp) readInteger() (x int, n int, err error) {
 	return int(i64), n, nil
 }
 
+// Read parses the next RESP value from the underlying reader.
 func (r *Resp) Read() (Value, error) {
 	_type, err := r.reader.ReadByte()
 	if err != nil {

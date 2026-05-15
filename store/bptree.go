@@ -25,12 +25,14 @@ func newInternal() *bpNode {
 
 func (n *bpNode) isLeaf() bool { return n.values != nil }
 
+// BPTreeStore is a thread-safe store backed by a B+ tree with ordered iteration.
 type BPTreeStore struct {
 	root   *bpNode
 	mu     sync.RWMutex
 	hashes map[string]map[string]string
 }
 
+// NewBPTreeStore returns a new BPTreeStore.
 func NewBPTreeStore() *BPTreeStore {
 	return &BPTreeStore{
 		root:   newLeaf(),

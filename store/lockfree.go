@@ -10,11 +10,13 @@ type bucketData struct {
 	hashes  map[string]map[string]string
 }
 
+// LockFreeStore is a lock-free concurrent store using atomic CAS on buckets.
 type LockFreeStore struct {
 	buckets []atomic.Pointer[bucketData]
 	mask    uint64
 }
 
+// NewLockFreeStore returns a new LockFreeStore with the given number of buckets.
 func NewLockFreeStore(shardCount int) *LockFreeStore {
 	if shardCount <= 0 {
 		shardCount = 256

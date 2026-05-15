@@ -17,6 +17,7 @@ type skipNode struct {
 	next  []*skipNode
 }
 
+// SkipListStore is a thread-safe store backed by a skip list with ordered iteration.
 type SkipListStore struct {
 	head   *skipNode
 	level  int
@@ -24,6 +25,7 @@ type SkipListStore struct {
 	hashes map[string]map[string]string
 }
 
+// NewSkipListStore returns a new SkipListStore.
 func NewSkipListStore() *SkipListStore {
 	return &SkipListStore{
 		head:   &skipNode{next: make([]*skipNode, skipMaxLevel)},

@@ -9,6 +9,7 @@ import (
 	"github.com/FreyreCorona/FluxCache/resp"
 )
 
+// TLS is a TLS-encrypted TCP network transport.
 type TLS struct {
 	addr     string
 	cert     string
@@ -19,10 +20,12 @@ type TLS struct {
 	ln       net.Listener
 }
 
+// NewTLS creates a new TLS transport with the given certificate and key files.
 func NewTLS(addr, certFile, keyFile string, maxConns int) *TLS {
 	return &TLS{addr: addr, cert: certFile, key: keyFile, maxConns: maxConns}
 }
 
+// Listen starts the TLS listener and begins accepting connections.
 func (t *TLS) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
 	cert, err := tls.LoadX509KeyPair(t.cert, t.key)
 	if err != nil {
@@ -94,6 +97,7 @@ func (t *TLS) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite
 	}
 }
 
+// Addr returns the address the listener is bound to.
 func (t *TLS) Addr() net.Addr {
 	if t.ln != nil {
 		return t.ln.Addr()
@@ -101,6 +105,7 @@ func (t *TLS) Addr() net.Addr {
 	return nil
 }
 
+// Close stops the TLS listener.
 func (t *TLS) Close() error {
 	if t.ln != nil {
 		return t.ln.Close()

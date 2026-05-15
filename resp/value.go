@@ -2,6 +2,7 @@ package resp
 
 import "strconv"
 
+// Wire protocol prefix bytes for RESP types.
 const (
 	STRING  = '+'
 	ERROR   = '-'
@@ -10,6 +11,7 @@ const (
 	ARRAY   = '*'
 )
 
+// RESP value type constants.
 const (
 	TypeArray  = "array"
 	TypeBulk   = "bulk"
@@ -19,6 +21,7 @@ const (
 	TypeInteger = "integer"
 )
 
+// Value represents a single RESP protocol value.
 type Value struct {
 	Type  string
 	Str   string
@@ -27,6 +30,7 @@ type Value struct {
 	Array []Value
 }
 
+// Marshal serializes the Value into its RESP wire-format representation.
 func (v Value) Marshal() []byte {
 	switch v.Type {
 	case TypeArray:

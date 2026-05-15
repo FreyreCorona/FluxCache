@@ -7,6 +7,7 @@ type crdtValue struct {
 	ts    uint64
 }
 
+// CRDTStore is a CRDT-based store using last-writer-wins semantics with timestamps.
 type CRDTStore struct {
 	data   map[string]crdtValue
 	hashes map[string]map[string]string
@@ -14,6 +15,7 @@ type CRDTStore struct {
 	mu     sync.RWMutex
 }
 
+// NewCRDTStore returns a new CRDTStore.
 func NewCRDTStore() *CRDTStore {
 	return &CRDTStore{
 		data:   make(map[string]crdtValue),
@@ -50,6 +52,7 @@ func (s *CRDTStore) Get(key string) (string, bool) {
 	return v.value, true
 }
 
+// SetWithTS sets a key with the given timestamp (LWW CRDT semantics).
 func (s *CRDTStore) SetWithTS(key, value string, ts uint64) {
 	s.mu.Lock()
 	existing, ok := s.data[key]
@@ -62,6 +65,7 @@ func (s *CRDTStore) SetWithTS(key, value string, ts uint64) {
 	s.mu.Unlock()
 }
 
+// Merge merges another CRDTStore into this one.
 func (s *CRDTStore) Merge(other *CRDTStore) {
 	other.mu.RLock()
 	for key, v := range other.data {
@@ -90,6 +94,7 @@ func (s *CRDTStore) Merge(other *CRDTStore) {
 	other.mu.RUnlock()
 }
 
+// Snapshot returns a point-in-time copy of all key-value pairs.
 func (s *CRDTStore) Snapshot() map[string]crdtValue {
 	s.mu.RLock()
 	out := make(map[string]crdtValue, len(s.data))

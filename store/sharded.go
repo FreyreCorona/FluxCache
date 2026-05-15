@@ -11,11 +11,13 @@ type shard struct {
 	hashes  map[string]map[string]string
 }
 
+// ShardedStore is a sharded in-memory store that reduces lock contention.
 type ShardedStore struct {
 	shards []*shard
 	mask   uint64
 }
 
+// NewShardedStore returns a new ShardedStore with the given number of shards.
 func NewShardedStore(shardCount int) *ShardedStore {
 	if shardCount <= 0 {
 		shardCount = 256

@@ -5,11 +5,13 @@ import (
 	"time"
 )
 
+// LFUPolicy implements eviction of the least frequently used key.
 type LFUPolicy struct {
 	mu   sync.Mutex
 	freq map[string]int
 }
 
+// NewLFUPolicy creates a new LFUPolicy.
 func NewLFUPolicy() *LFUPolicy {
 	return &LFUPolicy{freq: make(map[string]int)}
 }

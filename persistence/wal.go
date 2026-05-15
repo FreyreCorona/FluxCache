@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// WAL implements a write-ahead log with batched flushing.
 type WAL struct {
 	file      *os.File
 	mu        sync.Mutex
@@ -18,6 +19,7 @@ type WAL struct {
 	done      chan struct{}
 }
 
+// NewWAL opens or creates a WAL file at the given path.
 func NewWAL(path string) (*WAL, error) {
 	f, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0666)
 	if err != nil {
@@ -78,6 +80,7 @@ func unmarshalCommand(data []byte) (Command, []byte) {
 	return Command{Name: strings.ToUpper(name), Args: args}, data[off:]
 }
 
+// Write buffers a command and flushes when the batch size is reached.
 func (w *WAL) Write(cmd Command) error {
 	data := marshalCommand(cmd)
 	w.mu.Lock()
@@ -91,6 +94,7 @@ func (w *WAL) Write(cmd Command) error {
 	return nil
 }
 
+// Flush writes all buffered commands to disk.
 func (w *WAL) Flush() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -116,6 +120,7 @@ func (w *WAL) flushLoop() {
 	}
 }
 
+// Replay reads all commands from the WAL file and calls fn for each.
 func (w *WAL) Replay(fn func(Command)) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
@@ -145,6 +150,7 @@ func (w *WAL) Replay(fn func(Command)) error {
 	return err
 }
 
+// Close stops the flush loop and closes the WAL file.
 func (w *WAL) Close() error {
 	close(w.done)
 	w.mu.Lock()

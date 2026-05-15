@@ -7,6 +7,7 @@ import (
 	"github.com/FreyreCorona/FluxCache/evict"
 )
 
+// TTLStore wraps a Store with per-key TTL expiration and eviction policies.
 type TTLStore struct {
 	inner    Store
 	mu       sync.Mutex
@@ -17,6 +18,7 @@ type TTLStore struct {
 	done     chan struct{}
 }
 
+// NewTTLStore returns a new TTLStore wrapping the given inner store.
 func NewTTLStore(inner Store) *TTLStore {
 	t := &TTLStore{
 		inner:    inner,
@@ -29,6 +31,7 @@ func NewTTLStore(inner Store) *TTLStore {
 	return t
 }
 
+// SetEvictionPolicy sets the eviction policy and max key limit.
 func (t *TTLStore) SetEvictionPolicy(p evict.EvictionPolicy, maxKeys int) {
 	t.mu.Lock()
 	t.policy = p
@@ -141,6 +144,7 @@ func (t *TTLStore) Set(key, value string) {
 	t.evictIfNeeded()
 }
 
+// SetWithTTL sets a key with the given TTL duration.
 func (t *TTLStore) SetWithTTL(key, value string, ttl time.Duration) {
 	t.mu.Lock()
 	t.expireAt[key] = time.Now().Add(ttl)
@@ -162,6 +166,7 @@ func (t *TTLStore) Del(key string) {
 	t.inner.Del(key)
 }
 
+// Expire sets a TTL on an existing key.
 func (t *TTLStore) Expire(key string, ttl time.Duration) bool {
 	_, ok := t.inner.Get(key)
 	if !ok {
@@ -173,6 +178,7 @@ func (t *TTLStore) Expire(key string, ttl time.Duration) bool {
 	return true
 }
 
+// TTL returns the remaining TTL for a key (-2 if no TTL set or key does not exist).
 func (t *TTLStore) TTL(key string) time.Duration {
 	t.mu.Lock()
 	exp, ok := t.expireAt[key]
