@@ -151,3 +151,7 @@ func TestSyncMapStore(t *testing.T) {
 func TestLockFreeStore(t *testing.T) {
 	testStore(t, func() store.Store { return store.NewLockFreeStore(16) })
 }
+
+func TestSkipListStore(t *testing.T) {
+	testStore(t, func() store.Store { return store.NewSkipListStore() })
+}

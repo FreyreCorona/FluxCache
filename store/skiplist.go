@@ -1,0 +1,131 @@
+package store
+
+import (
+	"math/rand/v2"
+	"sync"
+)
+
+const (
+	skipMaxLevel = 32
+	skipP        = 0.25
+)
+
+type skipNode struct {
+	key   string
+	value string
+	next  []*skipNode
+}
+
+type SkipListStore struct {
+	head   *skipNode
+	level  int
+	mu     sync.RWMutex
+	hashes map[string]map[string]string
+}
+
+func NewSkipListStore() *SkipListStore {
+	return &SkipListStore{
+		head:   &skipNode{next: make([]*skipNode, skipMaxLevel)},
+		level:  1,
+		hashes: make(map[string]map[string]string),
+	}
+}
+
+func skipLevel() int {
+	level := 1
+	for level < skipMaxLevel && rand.Float64() < skipP {
+		level++
+	}
+	return level
+}
+
+func (s *SkipListStore) Set(key, value string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	prev := make([]*skipNode, skipMaxLevel)
+	curr := s.head
+	for i := s.level - 1; i >= 0; i-- {
+		for curr.next[i] != nil && curr.next[i].key < key {
+			curr = curr.next[i]
+		}
+		prev[i] = curr
+	}
+	curr = curr.next[0]
+
+	if curr != nil && curr.key == key {
+		curr.value = value
+		return
+	}
+
+	level := skipLevel()
+	if level > s.level {
+		for i := s.level; i < level; i++ {
+			prev[i] = s.head
+		}
+		s.level = level
+	}
+
+	n := &skipNode{key: key, value: value, next: make([]*skipNode, level)}
+	for i := range level {
+		n.next[i] = prev[i].next[i]
+		prev[i].next[i] = n
+	}
+}
+
+func (s *SkipListStore) Get(key string) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	curr := s.head
+	for i := s.level - 1; i >= 0; i-- {
+		for curr.next[i] != nil && curr.next[i].key < key {
+			curr = curr.next[i]
+		}
+	}
+	curr = curr.next[0]
+
+	if curr != nil && curr.key == key {
+		return curr.value, true
+	}
+	return "", false
+}
+
+func (s *SkipListStore) HSet(hash, key, value string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, ok := s.hashes[hash]; !ok {
+		s.hashes[hash] = make(map[string]string)
+	}
+	s.hashes[hash][key] = value
+}
+
+func (s *SkipListStore) HGet(hash, key string) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	m, ok := s.hashes[hash]
+	if !ok {
+		return "", false
+	}
+	v, ok := m[key]
+	return v, ok
+}
+
+func (s *SkipListStore) HGetAll(hash string) map[string]string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	m, ok := s.hashes[hash]
+	if !ok {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}
+
+func (s *SkipListStore) Close() error { return nil }
