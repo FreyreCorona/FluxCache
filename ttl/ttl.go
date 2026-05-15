@@ -11,6 +11,9 @@ type TTLStore struct {
 	inner    store.Store
 	mu       sync.Mutex
 	expireAt map[string]time.Time
+	allKeys  map[string]struct{}
+	policy   EvictionPolicy
+	maxKeys  int
 	done     chan struct{}
 }
 
@@ -18,10 +21,75 @@ func NewTTLStore(inner store.Store) *TTLStore {
 	t := &TTLStore{
 		inner:    inner,
 		expireAt: make(map[string]time.Time),
+		allKeys:  make(map[string]struct{}),
+		policy:   NewNoEviction(),
 		done:     make(chan struct{}),
 	}
 	go t.sweepLoop()
 	return t
+}
+
+func (t *TTLStore) SetEvictionPolicy(p EvictionPolicy, maxKeys int) {
+	t.mu.Lock()
+	t.policy = p
+	t.maxKeys = maxKeys
+	t.mu.Unlock()
+}
+
+func (t *TTLStore) track(key string) {
+	t.mu.Lock()
+	t.allKeys[key] = struct{}{}
+	t.mu.Unlock()
+	t.policy.Record(key)
+}
+
+func (t *TTLStore) untrack(key string) {
+	t.mu.Lock()
+	delete(t.allKeys, key)
+	delete(t.expireAt, key)
+	t.mu.Unlock()
+	t.policy.Delete(key)
+}
+
+func (t *TTLStore) candidates() []string {
+	t.mu.Lock()
+	name := t.policy.Name()
+	isVolatile := len(name) > 8 && name[:8] == "volatile"
+	keys := make([]string, 0)
+	if isVolatile {
+		for k := range t.expireAt {
+			keys = append(keys, k)
+		}
+	} else {
+		for k := range t.allKeys {
+			keys = append(keys, k)
+		}
+	}
+	t.mu.Unlock()
+	return keys
+}
+
+func (t *TTLStore) evictIfNeeded() {
+	t.mu.Lock()
+	shouldEvict := t.maxKeys > 0 && len(t.allKeys) > t.maxKeys
+	t.mu.Unlock()
+	if !shouldEvict {
+		return
+	}
+
+	candidates := t.candidates()
+	if len(candidates) == 0 {
+		return
+	}
+
+	t.mu.Lock()
+	key := t.policy.Evict(candidates, t.expireAt)
+	t.mu.Unlock()
+	if key == "" {
+		return
+	}
+	t.untrack(key)
+	t.inner.Del(key)
 }
 
 func (t *TTLStore) isExpired(key string) bool {
@@ -32,9 +100,7 @@ func (t *TTLStore) isExpired(key string) bool {
 }
 
 func (t *TTLStore) delExpired(key string) {
-	t.mu.Lock()
-	delete(t.expireAt, key)
-	t.mu.Unlock()
+	t.untrack(key)
 	t.inner.Del(key)
 }
 
@@ -59,23 +125,27 @@ func (t *TTLStore) sweep() {
 		if now.After(exp) {
 			expired = append(expired, key)
 			delete(t.expireAt, key)
+			delete(t.allKeys, key)
 		}
 	}
 	t.mu.Unlock()
 	for _, key := range expired {
+		t.policy.Delete(key)
 		t.inner.Del(key)
 	}
 }
 
 func (t *TTLStore) Set(key, value string) {
 	t.inner.Set(key, value)
+	t.track(key)
+	t.evictIfNeeded()
 }
 
 func (t *TTLStore) SetWithTTL(key, value string, ttl time.Duration) {
 	t.mu.Lock()
 	t.expireAt[key] = time.Now().Add(ttl)
 	t.mu.Unlock()
-	t.inner.Set(key, value)
+	t.Set(key, value)
 }
 
 func (t *TTLStore) Get(key string) (string, bool) {
@@ -83,13 +153,12 @@ func (t *TTLStore) Get(key string) (string, bool) {
 		t.delExpired(key)
 		return "", false
 	}
+	t.policy.Record(key)
 	return t.inner.Get(key)
 }
 
 func (t *TTLStore) Del(key string) {
-	t.mu.Lock()
-	delete(t.expireAt, key)
-	t.mu.Unlock()
+	t.untrack(key)
 	t.inner.Del(key)
 }
 
@@ -120,6 +189,8 @@ func (t *TTLStore) TTL(key string) time.Duration {
 
 func (t *TTLStore) HSet(hash, key, value string) {
 	t.inner.HSet(hash, key, value)
+	t.track(hash)
+	t.evictIfNeeded()
 }
 
 func (t *TTLStore) HGet(hash, key string) (string, bool) {
@@ -127,6 +198,7 @@ func (t *TTLStore) HGet(hash, key string) (string, bool) {
 		t.delExpired(hash)
 		return "", false
 	}
+	t.policy.Record(hash)
 	return t.inner.HGet(hash, key)
 }
 
@@ -135,6 +207,7 @@ func (t *TTLStore) HGetAll(hash string) map[string]string {
 		t.delExpired(hash)
 		return nil
 	}
+	t.policy.Record(hash)
 	return t.inner.HGetAll(hash)
 }
 
