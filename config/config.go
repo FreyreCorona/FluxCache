@@ -47,6 +47,33 @@ type EvictionConfig struct {
 	MaxKeys int    `yaml:"maxkeys"`
 }
 
+func Default() *Config {
+	return &Config{
+		Server: ServerConfig{
+			Port:    6379,
+			Network: "tcp",
+		},
+		Store: StoreConfig{
+			Type: "map",
+		},
+		Persistence: PersistenceConfig{
+			Type: "null",
+		},
+		Eviction: EvictionConfig{
+			Policy:  "noeviction",
+			MaxKeys: 0,
+		},
+	}
+}
+
+func (c *Config) Save(path string) error {
+	data, err := yaml.Marshal(c)
+	if err != nil {
+		return fmt.Errorf("config: marshal: %w", err)
+	}
+	return os.WriteFile(path, data, 0644)
+}
+
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
