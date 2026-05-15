@@ -147,3 +147,7 @@ func TestShardedStore(t *testing.T) {
 func TestSyncMapStore(t *testing.T) {
 	testStore(t, func() store.Store { return store.NewSyncMapStore() })
 }
+
+func TestLockFreeStore(t *testing.T) {
+	testStore(t, func() store.Store { return store.NewLockFreeStore(16) })
+}
