@@ -8,19 +8,19 @@ Key-value store en Go inspirado en Redis, construido con composición explícita
 
 ```
 ┌─────────────────────────────────────────────┐
-│              Network Layer                   │
+│              Network Layer                  │
 │     TCP | TLS | Unix | HTTP | gRPC          │
 ├─────────────────────────────────────────────┤
 │           Command Handlers                  │
 │     PING SET GET HSET HGET HGETALL          │
 │     EXPIRE TTL DEL                          │
-├────────────┬──────────────────┬──────────────┤
-│   Store    │  Eviction / TTL  │ Persistence  │
-│  9 impls   │  5 policies      │  5 impls     │
-├────────────┴──────────────────┴──────────────┤
-│           Cluster / Replication               │
-│          (próximo)                            │
-└──────────────────────────────────────────────┘
+├────────────┬──────────────────┬─────────────┤
+│   Store    │  Eviction / TTL  │ Persistence │
+│  9 impls   │  5 policies      │  5 impls    │
+├────────────┴──────────────────┴─────────────┤
+│           Cluster / Replication             │
+│          (próximo)                          │
+└─────────────────────────────────────────────┘
 ```
 
 ## Componentes
