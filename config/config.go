@@ -193,6 +193,8 @@ func BuildNetwork(cfg ServerConfig) (network.Network, error) {
 		return network.NewUnix(cfg.SocketPath), nil
 	case "http":
 		return network.NewHTTP(fmt.Sprintf(":%d", cfg.Port)), nil
+	case "grpc":
+		return network.NewGRPC(fmt.Sprintf(":%d", cfg.Port)), nil
 	default:
 		return nil, fmt.Errorf("config: unknown network %q", cfg.Network)
 	}

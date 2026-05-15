@@ -1,0 +1,21 @@
+syntax = "proto3";
+package fluxcache;
+
+option go_package = "github.com/FreyreCorona/FluxCache/network/grpcpb";
+
+service FluxCache {
+  rpc Exec(Command) returns (ResponseValue);
+}
+
+message Command {
+  string name = 1;
+  repeated string args = 2;
+}
+
+message ResponseValue {
+  string type = 1;
+  string str = 2;
+  int64 num = 3;
+  string bulk = 4;
+  repeated ResponseValue array = 5;
+}
