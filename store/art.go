@@ -29,26 +29,6 @@ const (
 	artEmptyIndex = -1
 )
 
-func newInner(t int) *artNode {
-	n := &artNode{nodeType: t}
-	switch t {
-	case artNode4:
-		n.keys = make([]byte, 0, 4)
-		n.children = make([]*artNode, 0, 4)
-	case artNode16:
-		n.keys = make([]byte, 0, 16)
-		n.children = make([]*artNode, 0, 16)
-	case artNode48:
-		for i := range n.index {
-			n.index[i] = artEmptyIndex
-		}
-		n.children = make([]*artNode, 0, 48)
-	case artNode256:
-		n.children = make([]*artNode, 256)
-	}
-	return n
-}
-
 type ARTStore struct {
 	root   *artNode
 	mu     sync.RWMutex
@@ -57,29 +37,6 @@ type ARTStore struct {
 
 func NewARTStore() *ARTStore {
 	return &ARTStore{hashes: make(map[string]map[string]string)}
-}
-
-func minimum(n *artNode) *artLeaf {
-	if n.leaf != nil {
-		return n.leaf
-	}
-	switch n.nodeType {
-	case artNode4, artNode16:
-		return minimum(n.children[0])
-	case artNode48:
-		for i := range n.index {
-			if n.index[i] != artEmptyIndex {
-				return minimum(n.children[n.index[i]])
-			}
-		}
-	case artNode256:
-		for i := range n.children {
-			if n.children[i] != nil {
-				return minimum(n.children[i])
-			}
-		}
-	}
-	return nil
 }
 
 func (s *ARTStore) Get(key string) (string, bool) {
@@ -134,7 +91,7 @@ func (s *ARTStore) Set(key, value string) {
 		if n.prefix != nil {
 			pxLen := len(n.prefix)
 			if depth+pxLen > len(key) {
-				s.splitPrefix(n, depth, key, value)
+				s.splitPrefix(n, key, value)
 				return
 			}
 			mismatch := 0
@@ -204,7 +161,7 @@ func (s *ARTStore) Set(key, value string) {
 	s.addChild(n, newByte, newLeaf)
 }
 
-func (s *ARTStore) splitPrefix(n *artNode, depth int, key, value string) {
+func (s *ARTStore) splitPrefix(n *artNode, key, value string) {
 	newNode := &artNode{
 		nodeType: n.nodeType,
 		keys:     n.keys,
