@@ -1,11 +1,14 @@
 package main
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/FreyreCorona/FluxCache/resp"
-	"github.com/FreyreCorona/FluxCache/store"
+	"github.com/FreyreCorona/FluxCache/ttl"
 )
 
-func NewHandlers(s store.Store) map[string]func([]resp.Value) resp.Value {
+func NewHandlers(s *ttl.TTLStore) map[string]func([]resp.Value) resp.Value {
 	return map[string]func([]resp.Value) resp.Value{
 		"PING":    ping,
 		"SET":     setHandler(s),
@@ -13,6 +16,9 @@ func NewHandlers(s store.Store) map[string]func([]resp.Value) resp.Value {
 		"HSET":    hsetHandler(s),
 		"HGET":    hgetHandler(s),
 		"HGETALL": hgetallHandler(s),
+		"EXPIRE":  expireHandler(s),
+		"TTL":     ttlHandler(s),
+		"DEL":     delHandler(s),
 	}
 }
 
@@ -23,17 +29,31 @@ func ping(args []resp.Value) resp.Value {
 	return resp.Value{Type: resp.TypeString, Str: args[0].Bulk}
 }
 
-func setHandler(s store.Store) func([]resp.Value) resp.Value {
+func setHandler(s *ttl.TTLStore) func([]resp.Value) resp.Value {
 	return func(args []resp.Value) resp.Value {
-		if len(args) != 2 {
+		if len(args) < 2 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'set' command"}
 		}
-		s.Set(args[0].Bulk, args[1].Bulk)
+		key := args[0].Bulk
+		val := args[1].Bulk
+
+		if len(args) >= 4 {
+			flag := args[2].Bulk
+			if flag == "EX" || flag == "ex" {
+				sec, err := strconv.Atoi(args[3].Bulk)
+				if err == nil {
+					s.SetWithTTL(key, val, time.Duration(sec)*time.Second)
+					return resp.Value{Type: resp.TypeString, Str: "OK"}
+				}
+			}
+		}
+
+		s.Set(key, val)
 		return resp.Value{Type: resp.TypeString, Str: "OK"}
 	}
 }
 
-func getHandler(s store.Store) func([]resp.Value) resp.Value {
+func getHandler(s *ttl.TTLStore) func([]resp.Value) resp.Value {
 	return func(args []resp.Value) resp.Value {
 		if len(args) != 1 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'get' command"}
@@ -46,7 +66,7 @@ func getHandler(s store.Store) func([]resp.Value) resp.Value {
 	}
 }
 
-func hsetHandler(s store.Store) func([]resp.Value) resp.Value {
+func hsetHandler(s *ttl.TTLStore) func([]resp.Value) resp.Value {
 	return func(args []resp.Value) resp.Value {
 		if len(args) != 3 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hset' command"}
@@ -56,7 +76,7 @@ func hsetHandler(s store.Store) func([]resp.Value) resp.Value {
 	}
 }
 
-func hgetHandler(s store.Store) func([]resp.Value) resp.Value {
+func hgetHandler(s *ttl.TTLStore) func([]resp.Value) resp.Value {
 	return func(args []resp.Value) resp.Value {
 		if len(args) != 2 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hget' command"}
@@ -69,7 +89,7 @@ func hgetHandler(s store.Store) func([]resp.Value) resp.Value {
 	}
 }
 
-func hgetallHandler(s store.Store) func([]resp.Value) resp.Value {
+func hgetallHandler(s *ttl.TTLStore) func([]resp.Value) resp.Value {
 	return func(args []resp.Value) resp.Value {
 		if len(args) != 1 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hgetall' command"}
@@ -84,5 +104,49 @@ func hgetallHandler(s store.Store) func([]resp.Value) resp.Value {
 			values = append(values, resp.Value{Type: resp.TypeBulk, Bulk: v})
 		}
 		return resp.Value{Type: resp.TypeArray, Array: values}
+	}
+}
+
+func expireHandler(s *ttl.TTLStore) func([]resp.Value) resp.Value {
+	return func(args []resp.Value) resp.Value {
+		if len(args) != 2 {
+			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'expire' command"}
+		}
+		sec, err := strconv.Atoi(args[1].Bulk)
+		if err != nil {
+			return resp.Value{Type: resp.TypeError, Str: "ERR value is not an integer or out of range"}
+		}
+		ok := s.Expire(args[0].Bulk, time.Duration(sec)*time.Second)
+		if ok {
+			return resp.Value{Type: resp.TypeInteger, Num: 1}
+		}
+		return resp.Value{Type: resp.TypeInteger, Num: 0}
+	}
+}
+
+func ttlHandler(s *ttl.TTLStore) func([]resp.Value) resp.Value {
+	return func(args []resp.Value) resp.Value {
+		if len(args) != 1 {
+			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'ttl' command"}
+		}
+		d := s.TTL(args[0].Bulk)
+		return resp.Value{Type: resp.TypeInteger, Num: int(d.Seconds())}
+	}
+}
+
+func delHandler(s *ttl.TTLStore) func([]resp.Value) resp.Value {
+	return func(args []resp.Value) resp.Value {
+		if len(args) < 1 {
+			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'del' command"}
+		}
+		count := 0
+		for _, arg := range args {
+			_, ok := s.Get(arg.Bulk)
+			if ok {
+				s.Del(arg.Bulk)
+				count++
+			}
+		}
+		return resp.Value{Type: resp.TypeInteger, Num: count}
 	}
 }
