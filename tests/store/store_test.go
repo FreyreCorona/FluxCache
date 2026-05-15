@@ -155,3 +155,7 @@ func TestLockFreeStore(t *testing.T) {
 func TestSkipListStore(t *testing.T) {
 	testStore(t, func() store.Store { return store.NewSkipListStore() })
 }
+
+func TestBPTreeStore(t *testing.T) {
+	testStore(t, func() store.Store { return store.NewBPTreeStore() })
+}
