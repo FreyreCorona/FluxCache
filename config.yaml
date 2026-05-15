@@ -1,5 +1,6 @@
 server:
   port: 6379
+  network: tcp
 
 store:
   type: map

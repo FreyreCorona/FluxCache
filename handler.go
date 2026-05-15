@@ -4,12 +4,13 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/FreyreCorona/FluxCache/network"
 	"github.com/FreyreCorona/FluxCache/resp"
 	"github.com/FreyreCorona/FluxCache/store"
 )
 
-func NewHandlers(s *store.TTLStore) map[string]func([]resp.Value) resp.Value {
-	return map[string]func([]resp.Value) resp.Value{
+func NewHandlers(s *store.TTLStore) map[string]network.HandlerFunc {
+	return map[string]network.HandlerFunc{
 		"PING":    ping,
 		"SET":     setHandler(s),
 		"GET":     getHandler(s),
@@ -29,7 +30,7 @@ func ping(args []resp.Value) resp.Value {
 	return resp.Value{Type: resp.TypeString, Str: args[0].Bulk}
 }
 
-func setHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
+func setHandler(s *store.TTLStore) network.HandlerFunc {
 	return func(args []resp.Value) resp.Value {
 		if len(args) < 2 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'set' command"}
@@ -53,7 +54,7 @@ func setHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
 	}
 }
 
-func getHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
+func getHandler(s *store.TTLStore) network.HandlerFunc {
 	return func(args []resp.Value) resp.Value {
 		if len(args) != 1 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'get' command"}
@@ -66,7 +67,7 @@ func getHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
 	}
 }
 
-func hsetHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
+func hsetHandler(s *store.TTLStore) network.HandlerFunc {
 	return func(args []resp.Value) resp.Value {
 		if len(args) != 3 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hset' command"}
@@ -76,7 +77,7 @@ func hsetHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
 	}
 }
 
-func hgetHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
+func hgetHandler(s *store.TTLStore) network.HandlerFunc {
 	return func(args []resp.Value) resp.Value {
 		if len(args) != 2 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hget' command"}
@@ -89,7 +90,7 @@ func hgetHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
 	}
 }
 
-func hgetallHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
+func hgetallHandler(s *store.TTLStore) network.HandlerFunc {
 	return func(args []resp.Value) resp.Value {
 		if len(args) != 1 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'hgetall' command"}
@@ -107,7 +108,7 @@ func hgetallHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
 	}
 }
 
-func expireHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
+func expireHandler(s *store.TTLStore) network.HandlerFunc {
 	return func(args []resp.Value) resp.Value {
 		if len(args) != 2 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'expire' command"}
@@ -124,7 +125,7 @@ func expireHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
 	}
 }
 
-func ttlHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
+func ttlHandler(s *store.TTLStore) network.HandlerFunc {
 	return func(args []resp.Value) resp.Value {
 		if len(args) != 1 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'ttl' command"}
@@ -134,7 +135,7 @@ func ttlHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
 	}
 }
 
-func delHandler(s *store.TTLStore) func([]resp.Value) resp.Value {
+func delHandler(s *store.TTLStore) network.HandlerFunc {
 	return func(args []resp.Value) resp.Value {
 		if len(args) < 1 {
 			return resp.Value{Type: resp.TypeError, Str: "ERR wrong number of arguments for 'del' command"}

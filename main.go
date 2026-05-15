@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"os"
-	"strings"
 
 	"github.com/FreyreCorona/FluxCache/config"
 	"github.com/FreyreCorona/FluxCache/persistence"
@@ -44,54 +42,17 @@ func main() {
 		}
 	})
 
-	addr := fmt.Sprintf(":%d", cfg.Server.Port)
+	n, err := config.BuildNetwork(cfg.Server)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer n.Close()
+
+	handlers := NewHandlers(s)
+
 	fmt.Printf("Listening on port %d\n", cfg.Server.Port)
-
-	l, err := net.Listen("tcp", addr)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-
-	Handlers := NewHandlers(s)
-
-	conn, err := l.Accept()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer conn.Close()
-
-	for {
-		respReader := resp.NewResp(conn)
-		value, err := respReader.Read()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		if value.Type != "array" {
-			fmt.Println("Invalid request, expected array")
-			continue
-		}
-
-		if len(value.Array) == 0 {
-			fmt.Println("Invalid request, expected array length > 0")
-			continue
-		}
-
-		command := strings.ToUpper(value.Array[0].Bulk)
-		args := value.Array[1:]
-
-		writer := resp.NewWriter(conn)
-
-		handler, ok := Handlers[command]
-		if !ok {
-			fmt.Println("Invalid command: ", command)
-			writer.Write(resp.Value{Type: resp.TypeString, Str: ""})
-			continue
-		}
-
+	if err := n.Listen(handlers, func(command string, args []resp.Value) {
 		if command == "SET" || command == "HSET" {
 			cmd := persistence.Command{Name: command, Args: make([]string, len(args))}
 			for i, arg := range args {
@@ -99,8 +60,7 @@ func main() {
 			}
 			p.Write(cmd)
 		}
-
-		result := handler(args)
-		writer.Write(result)
+	}); err != nil {
+		fmt.Println(err)
 	}
 }

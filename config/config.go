@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/FreyreCorona/FluxCache/evict"
+	"github.com/FreyreCorona/FluxCache/network"
 	"github.com/FreyreCorona/FluxCache/persistence"
 	"github.com/FreyreCorona/FluxCache/store"
 )
@@ -20,7 +21,8 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port int `yaml:"port"`
+	Port    int    `yaml:"port"`
+	Network string `yaml:"network"`
 }
 
 type StoreConfig struct {
@@ -53,6 +55,9 @@ func Load(path string) (*Config, error) {
 	}
 	if cfg.Server.Port == 0 {
 		cfg.Server.Port = 6379
+	}
+	if cfg.Server.Network == "" {
+		cfg.Server.Network = "tcp"
 	}
 	if cfg.Store.Type == "" {
 		cfg.Store.Type = "map"
@@ -167,4 +172,13 @@ func Build(cfg *Config) (*store.TTLStore, persistence.Persistence, error) {
 	}
 
 	return ts, p, nil
+}
+
+func BuildNetwork(cfg ServerConfig) (network.Network, error) {
+	switch cfg.Network {
+	case "tcp":
+		return network.NewTCP(fmt.Sprintf(":%d", cfg.Port)), nil
+	default:
+		return nil, fmt.Errorf("config: unknown network %q", cfg.Network)
+	}
 }
