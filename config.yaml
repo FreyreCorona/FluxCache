@@ -1,0 +1,12 @@
+server:
+  port: 6379
+
+store:
+  type: map
+
+persistence:
+  type: null
+
+eviction:
+  policy: noeviction
+  maxkeys: 0

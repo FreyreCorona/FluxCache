@@ -3,28 +3,32 @@ package main
 import (
 	"fmt"
 	"net"
+	"os"
 	"strings"
 
+	"github.com/FreyreCorona/FluxCache/config"
 	"github.com/FreyreCorona/FluxCache/persistence"
 	"github.com/FreyreCorona/FluxCache/resp"
-	"github.com/FreyreCorona/FluxCache/store"
 )
 
 func main() {
-	fmt.Println("Listening on port :6379")
+	cfgPath := "config.yaml"
+	if len(os.Args) > 1 {
+		cfgPath = os.Args[1]
+	}
 
-	l, err := net.Listen("tcp", ":6379")
+	cfg, err := config.Load(cfgPath)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
 
-	s := store.NewTTLStore(store.NewMapStore())
-	p, err := persistence.NewAOF("database.aof")
+	s, p, err := config.Build(cfg)
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
+	defer s.Close()
 	defer p.Close()
 
 	p.Replay(func(cmd persistence.Command) {
@@ -39,6 +43,15 @@ func main() {
 			}
 		}
 	})
+
+	addr := fmt.Sprintf(":%d", cfg.Server.Port)
+	fmt.Printf("Listening on port %d\n", cfg.Server.Port)
+
+	l, err := net.Listen("tcp", addr)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	Handlers := NewHandlers(s)
 
