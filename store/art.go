@@ -1,0 +1,399 @@
+package store
+
+import "sync"
+
+type artLeaf struct {
+	key   string
+	value string
+}
+
+type artNode struct {
+	prefix   []byte
+	leaf     *artLeaf
+	nodeType int
+	keys     []byte
+	children []*artNode
+	index    [256]int16
+}
+
+const (
+	_             = iota
+	artNode4      = 4
+	artNode16     = 16
+	artNode48     = 48
+	artNode256    = 256
+	artEmptyIndex = -1
+)
+
+func newInner(t int) *artNode {
+	n := &artNode{nodeType: t}
+	switch t {
+	case artNode4:
+		n.keys = make([]byte, 0, 4)
+		n.children = make([]*artNode, 0, 4)
+	case artNode16:
+		n.keys = make([]byte, 0, 16)
+		n.children = make([]*artNode, 0, 16)
+	case artNode48:
+		for i := range n.index {
+			n.index[i] = artEmptyIndex
+		}
+		n.children = make([]*artNode, 0, 48)
+	case artNode256:
+		n.children = make([]*artNode, 256)
+	}
+	return n
+}
+
+type ARTStore struct {
+	root   *artNode
+	mu     sync.RWMutex
+	hashes map[string]map[string]string
+}
+
+func NewARTStore() *ARTStore {
+	return &ARTStore{hashes: make(map[string]map[string]string)}
+}
+
+func minimum(n *artNode) *artLeaf {
+	if n.leaf != nil {
+		return n.leaf
+	}
+	switch n.nodeType {
+	case artNode4, artNode16:
+		return minimum(n.children[0])
+	case artNode48:
+		for i := range n.index {
+			if n.index[i] != artEmptyIndex {
+				return minimum(n.children[n.index[i]])
+			}
+		}
+	case artNode256:
+		for i := range n.children {
+			if n.children[i] != nil {
+				return minimum(n.children[i])
+			}
+		}
+	}
+	return nil
+}
+
+func (s *ARTStore) Get(key string) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.root == nil {
+		return "", false
+	}
+	n := s.root
+	depth := 0
+	for n.leaf == nil {
+		if n.prefix != nil {
+			pxLen := len(n.prefix)
+			if depth+pxLen > len(key) || key[depth:depth+pxLen] != string(n.prefix) {
+				return "", false
+			}
+			depth += pxLen
+		}
+		if depth >= len(key) {
+			child := s.findChild(n, 0)
+			if child == nil {
+				return "", false
+			}
+			n = child
+			continue
+		}
+		n = s.findChild(n, key[depth])
+		if n == nil {
+			return "", false
+		}
+		depth++
+	}
+	if n.leaf.key == key {
+		return n.leaf.value, true
+	}
+	return "", false
+}
+
+func (s *ARTStore) Set(key, value string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.root == nil {
+		s.root = &artNode{leaf: &artLeaf{key: key, value: value}}
+		return
+	}
+
+	depth := 0
+	n := s.root
+	for n.leaf == nil {
+		if n.prefix != nil {
+			pxLen := len(n.prefix)
+			if depth+pxLen > len(key) {
+				s.splitPrefix(n, depth, key, value)
+				return
+			}
+			mismatch := 0
+			for ; mismatch < pxLen && depth+mismatch < len(key) && n.prefix[mismatch] == key[depth+mismatch]; mismatch++ {
+			}
+			if mismatch < pxLen {
+				s.splitPrefixAt(n, depth, mismatch, key, value)
+				return
+			}
+			depth += pxLen
+		}
+		if depth >= len(key) {
+			if n.leaf == nil {
+				child := s.findChild(n, 0)
+				if child != nil {
+					if child.leaf.key == key {
+						child.leaf.value = value
+						return
+					}
+					s.addChild(n, 0, &artNode{leaf: &artLeaf{key: key, value: value}})
+					return
+				}
+			}
+			s.addChild(n, 0, &artNode{leaf: &artLeaf{key: key, value: value}})
+			return
+		}
+		b := key[depth]
+		child := s.findChild(n, b)
+		if child == nil {
+			s.addChild(n, b, &artNode{leaf: &artLeaf{key: key, value: value}})
+			return
+		}
+		n = child
+		depth++
+	}
+
+	if n.leaf.key == key {
+		n.leaf.value = value
+		return
+	}
+
+	oldKey := n.leaf.key
+	oldValue := n.leaf.value
+
+	newLeaf := &artNode{leaf: &artLeaf{key: key, value: value}}
+	oldLeaf := &artNode{leaf: &artLeaf{key: oldKey, value: oldValue}}
+	n.leaf = nil
+
+	prefixLen := s.lcp(oldKey, key, depth)
+	if prefixLen > 0 {
+		n.prefix = []byte(oldKey[depth : depth+prefixLen])
+	}
+
+	childByte := byte(0)
+	if depth+prefixLen < len(oldKey) {
+		childByte = oldKey[depth+prefixLen]
+	}
+	newByte := byte(0)
+	if depth+prefixLen < len(key) {
+		newByte = key[depth+prefixLen]
+	}
+
+	n.nodeType = artNode4
+	n.keys = make([]byte, 0, 4)
+	n.children = make([]*artNode, 0, 4)
+	s.addChild(n, childByte, oldLeaf)
+	s.addChild(n, newByte, newLeaf)
+}
+
+func (s *ARTStore) splitPrefix(n *artNode, depth int, key, value string) {
+	newNode := &artNode{
+		nodeType: n.nodeType,
+		keys:     n.keys,
+		children: n.children,
+		index:    n.index,
+		leaf:     n.leaf,
+	}
+	if len(n.prefix) > 0 {
+		newNode.prefix = make([]byte, len(n.prefix))
+		copy(newNode.prefix, n.prefix)
+	}
+	n.leaf = nil
+	n.nodeType = artNode4
+	n.keys = make([]byte, 0, 4)
+	n.children = make([]*artNode, 0, 4)
+	n.prefix = nil
+	s.addChild(n, newNode.prefix[0], newNode)
+	n.prefix = make([]byte, 0)
+	s.Set(key, value)
+}
+
+func (s *ARTStore) splitPrefixAt(n *artNode, depth, mismatch int, key, value string) {
+	newNode := &artNode{
+		nodeType: n.nodeType,
+		keys:     n.keys,
+		children: n.children,
+		index:    n.index,
+		leaf:     n.leaf,
+	}
+	if len(n.prefix) > 0 {
+		newNode.prefix = make([]byte, len(n.prefix)-mismatch-1)
+		copy(newNode.prefix, n.prefix[mismatch+1:])
+	}
+
+	childByte := n.prefix[mismatch]
+	newByte := key[depth+mismatch]
+	if depth+mismatch >= len(key) {
+		newByte = 0
+	}
+
+	n.leaf = nil
+	n.nodeType = artNode4
+	n.keys = make([]byte, 0, 4)
+	n.children = make([]*artNode, 0, 4)
+	n.prefix = make([]byte, mismatch)
+	copy(n.prefix, newNode.prefix[:0])
+	n.prefix = newNode.prefix[:mismatch]
+
+	s.addChild(n, childByte, newNode)
+	s.addChild(n, newByte, &artNode{leaf: &artLeaf{key: key, value: value}})
+}
+
+func (s *ARTStore) findChild(n *artNode, b byte) *artNode {
+	switch n.nodeType {
+	case artNode4, artNode16:
+		for i, k := range n.keys {
+			if k == b {
+				return n.children[i]
+			}
+		}
+	case artNode48:
+		if idx := n.index[b]; idx != artEmptyIndex {
+			return n.children[idx]
+		}
+	case artNode256:
+		return n.children[b]
+	}
+	return nil
+}
+
+func (s *ARTStore) addChild(n *artNode, b byte, child *artNode) {
+	switch n.nodeType {
+	case artNode4, artNode16:
+		pos := 0
+		for pos < len(n.keys) && n.keys[pos] < b {
+			pos++
+		}
+		n.keys = append(n.keys, 0)
+		copy(n.keys[pos+1:], n.keys[pos:])
+		n.keys[pos] = b
+		n.children = append(n.children, nil)
+		copy(n.children[pos+1:], n.children[pos:])
+		n.children[pos] = child
+
+		if len(n.keys) >= cap(n.keys) && n.nodeType == artNode4 {
+			s.grow4to16(n)
+		} else if len(n.keys) >= cap(n.keys) && n.nodeType == artNode16 {
+			s.grow16to48(n)
+		}
+
+	case artNode48:
+		slot := len(n.children)
+		n.index[b] = int16(slot)
+		n.children = append(n.children, child)
+		if len(n.children) == 48 {
+			s.grow48to256(n)
+		}
+
+	case artNode256:
+		n.children[b] = child
+	}
+}
+
+func (s *ARTStore) grow4to16(n *artNode) {
+	newKeys := make([]byte, len(n.keys), 16)
+	copy(newKeys, n.keys)
+	newChildren := make([]*artNode, len(n.children), 16)
+	copy(newChildren, n.children)
+	n.keys = newKeys
+	n.children = newChildren
+	n.nodeType = artNode16
+}
+
+func (s *ARTStore) grow16to48(n *artNode) {
+	for i := range n.index {
+		n.index[i] = artEmptyIndex
+	}
+	for i, k := range n.keys {
+		n.index[k] = int16(i)
+	}
+	newChildren := make([]*artNode, len(n.children), 48)
+	copy(newChildren, n.children)
+	n.children = newChildren
+	n.keys = nil
+	n.nodeType = artNode48
+}
+
+func (s *ARTStore) grow48to256(n *artNode) {
+	newChildren := make([]*artNode, 256)
+	for i, child := range n.children {
+		for k := range n.index {
+			if n.index[k] == int16(i) {
+				newChildren[k] = child
+				break
+			}
+		}
+	}
+	n.children = newChildren
+	n.index = [256]int16{}
+	n.nodeType = artNode256
+}
+
+func (s *ARTStore) lcp(key1, key2 string, start int) int {
+	limit := min(len(key1), len(key2)) - start
+	if limit <= 0 {
+		return 0
+	}
+	i := 0
+	for i < limit && key1[start+i] == key2[start+i] {
+		i++
+	}
+	return i
+}
+
+func (s *ARTStore) HSet(hash, key, value string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.hashes[hash]; !ok {
+		s.hashes[hash] = make(map[string]string)
+	}
+	s.hashes[hash][key] = value
+}
+
+func (s *ARTStore) HGet(hash, key string) (string, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	m, ok := s.hashes[hash]
+	if !ok {
+		return "", false
+	}
+	v, ok := m[key]
+	return v, ok
+}
+
+func (s *ARTStore) HGetAll(hash string) map[string]string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	m, ok := s.hashes[hash]
+	if !ok {
+		return nil
+	}
+	out := make(map[string]string, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}
+
+func (s *ARTStore) Close() error { return nil }
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}

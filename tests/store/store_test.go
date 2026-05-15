@@ -159,3 +159,7 @@ func TestSkipListStore(t *testing.T) {
 func TestBPTreeStore(t *testing.T) {
 	testStore(t, func() store.Store { return store.NewBPTreeStore() })
 }
+
+func TestARTStore(t *testing.T) {
+	testStore(t, func() store.Store { return store.NewARTStore() })
+}
