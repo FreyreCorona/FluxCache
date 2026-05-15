@@ -186,6 +186,11 @@ func BuildNetwork(cfg ServerConfig) (network.Network, error) {
 			return nil, fmt.Errorf("config: tls requires cert_file and key_file")
 		}
 		return network.NewTLS(fmt.Sprintf(":%d", cfg.Port), cfg.CertFile, cfg.KeyFile), nil
+	case "unix":
+		if cfg.SocketPath == "" {
+			return nil, fmt.Errorf("config: unix requires socket_path")
+		}
+		return network.NewUnix(cfg.SocketPath), nil
 	case "http":
 		return network.NewHTTP(fmt.Sprintf(":%d", cfg.Port)), nil
 	default:
