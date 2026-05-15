@@ -1,4 +1,4 @@
-package tests
+package persistence_test
 
 import (
 	"os"
@@ -87,7 +87,12 @@ func TestAOFEmptyReplay(t *testing.T) {
 }
 
 func TestAOFReplayMultipleOpenClose(t *testing.T) {
-	path := tempFile(t)
+	f, err := os.CreateTemp("", "fluxcache-aof-*.aof")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+	path := f.Name()
 	defer os.Remove(path)
 
 	cmds := []persistence.Command{
@@ -120,14 +125,4 @@ func TestAOFReplayMultipleOpenClose(t *testing.T) {
 	if len(replayed) != 2 {
 		t.Fatalf("expected 2 commands after reopen, got %d", len(replayed))
 	}
-}
-
-func tempFile(t *testing.T) string {
-	t.Helper()
-	f, err := os.CreateTemp("", "fluxcache-aof-*.aof")
-	if err != nil {
-		t.Fatal(err)
-	}
-	f.Close()
-	return f.Name()
 }

@@ -1,4 +1,4 @@
-package tests
+package store_test
 
 import (
 	"sync"
@@ -98,9 +98,8 @@ func testStore(t *testing.T, newStore func() store.Store) {
 	t.Run("ConcurrentSetGet", func(t *testing.T) {
 		s := newStore()
 		var wg sync.WaitGroup
-		n := 100
 
-		for i := range n {
+		for i := 0; i < 100; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
@@ -115,9 +114,8 @@ func testStore(t *testing.T, newStore func() store.Store) {
 	t.Run("ConcurrentHSetHGet", func(t *testing.T) {
 		s := newStore()
 		var wg sync.WaitGroup
-		n := 100
 
-		for i := range n {
+		for i := 0; i < 100; i++ {
 			wg.Add(1)
 			go func(i int) {
 				defer wg.Done()
