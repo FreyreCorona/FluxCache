@@ -2,7 +2,6 @@ package resp
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"strconv"
 )
@@ -53,8 +52,13 @@ func (r *Resp) Read() (Value, error) {
 		return r.readArray()
 	case BULK:
 		return r.readBulk()
+	case STRING:
+		return r.readSimpleString()
+	case ERROR:
+		return r.readError()
+	case INTEGER:
+		return r.readIntegerValue()
 	default:
-		fmt.Printf("Unknown type: %v\n", string(_type))
 		return Value{}, nil
 	}
 }
@@ -89,6 +93,11 @@ func (r *Resp) readBulk() (Value, error) {
 		return v, err
 	}
 
+	if len == -1 {
+		v.Type = TypeNull
+		return v, nil
+	}
+
 	bulk := make([]byte, len)
 	r.reader.Read(bulk)
 	v.Bulk = string(bulk)
@@ -96,4 +105,28 @@ func (r *Resp) readBulk() (Value, error) {
 	r.readLine()
 
 	return v, nil
+}
+
+func (r *Resp) readSimpleString() (Value, error) {
+	line, _, err := r.readLine()
+	if err != nil {
+		return Value{}, err
+	}
+	return Value{Type: TypeString, Str: string(line)}, nil
+}
+
+func (r *Resp) readError() (Value, error) {
+	line, _, err := r.readLine()
+	if err != nil {
+		return Value{}, err
+	}
+	return Value{Type: TypeError, Str: string(line)}, nil
+}
+
+func (r *Resp) readIntegerValue() (Value, error) {
+	n, _, err := r.readInteger()
+	if err != nil {
+		return Value{}, err
+	}
+	return Value{Type: TypeInteger, Num: n}, nil
 }
