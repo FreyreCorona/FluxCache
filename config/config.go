@@ -21,8 +21,11 @@ type Config struct {
 }
 
 type ServerConfig struct {
-	Port    int    `yaml:"port"`
-	Network string `yaml:"network"`
+	Port       int    `yaml:"port"`
+	Network    string `yaml:"network"`
+	CertFile   string `yaml:"cert_file"`
+	KeyFile    string `yaml:"key_file"`
+	SocketPath string `yaml:"socket_path"`
 }
 
 type StoreConfig struct {
@@ -178,6 +181,11 @@ func BuildNetwork(cfg ServerConfig) (network.Network, error) {
 	switch cfg.Network {
 	case "tcp":
 		return network.NewTCP(fmt.Sprintf(":%d", cfg.Port)), nil
+	case "tls":
+		if cfg.CertFile == "" || cfg.KeyFile == "" {
+			return nil, fmt.Errorf("config: tls requires cert_file and key_file")
+		}
+		return network.NewTLS(fmt.Sprintf(":%d", cfg.Port), cfg.CertFile, cfg.KeyFile), nil
 	case "http":
 		return network.NewHTTP(fmt.Sprintf(":%d", cfg.Port)), nil
 	default:
