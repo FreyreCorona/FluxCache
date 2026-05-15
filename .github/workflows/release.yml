@@ -13,9 +13,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+      - name: Generate changelog
+        run: |
+          prev=$(git tag --sort=-v:refname | head -2 | tail -1 || true)
+          if [ -z "$prev" ]; then
+            range="${GITHUB_REF_NAME}"
+          else
+            range="${prev}..${GITHUB_REF_NAME}"
+          fi
+          git log --oneline --no-decorate $range 2>/dev/null \
+            | sed 's/^/- /' \
+            > /tmp/changelog.txt
+          if [ ! -s /tmp/changelog.txt ]; then
+            echo "- Initial release" > /tmp/changelog.txt
+          fi
       - name: Build and package
         run: |
           mkdir -p dist
@@ -30,5 +46,5 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: /tmp/changelog.txt
           files: dist/*.tar.gz
-          generate_release_notes: true
