@@ -173,8 +173,9 @@ Esto no se implementa en la fase actual, pero las decisiones de persistencia y l
 - [x] 5 Persistence implementaciones (AOF, WAL, RDB, Dual, Null)
 - [x] Configuración declarativa via YAML
 - [x] Makefile (fmt, vet, test, bench, build, run)
-- [ ] Persistencia Bitcask
-- [ ] Network Layer abstracta (TCP/HTTP/...)
+- [x] Persistencia Bitcask (BitcaskStore — auto-persistente)
+- [x] Network Layer abstracta (TCP, HTTP, TLS, Unix, gRPC)
+- [x] Validación de configuración (port, tipos, campos requeridos)
 - [ ] Cluster / hive mode
 
 ---
