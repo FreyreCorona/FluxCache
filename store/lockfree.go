@@ -2,6 +2,7 @@ package store
 
 import (
 	"hash/fnv"
+	"maps"
 	"sync/atomic"
 )
 
@@ -42,9 +43,7 @@ func (s *LockFreeStore) bucket(key string) *atomic.Pointer[bucketData] {
 
 func clone[V any](m map[string]V) map[string]V {
 	out := make(map[string]V, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
+	maps.Copy(out, m)
 	return out
 }
 
@@ -123,9 +122,7 @@ func (s *LockFreeStore) HGetAll(hash string) map[string]string {
 		return nil
 	}
 	out := make(map[string]string, len(inner))
-	for k, v := range inner {
-		out[k] = v
-	}
+	maps.Copy(out, inner)
 	return out
 }
 

@@ -52,7 +52,7 @@ func (h *HTTP) Close() error {
 func (h *HTTP) handleCommand(handlers map[string]HandlerFunc, onWrite WriteFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
-			writeJSON(w, http.StatusMethodNotAllowed, map[string]interface{}{
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]any{
 				"ok": false, "error": "method not allowed",
 			})
 			return
@@ -60,14 +60,14 @@ func (h *HTTP) handleCommand(handlers map[string]HandlerFunc, onWrite WriteFunc)
 
 		var args []string
 		if err := json.NewDecoder(r.Body).Decode(&args); err != nil {
-			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+			writeJSON(w, http.StatusBadRequest, map[string]any{
 				"ok": false, "error": "invalid json",
 			})
 			return
 		}
 
 		if len(args) == 0 {
-			writeJSON(w, http.StatusBadRequest, map[string]interface{}{
+			writeJSON(w, http.StatusBadRequest, map[string]any{
 				"ok": false, "error": "empty command",
 			})
 			return
@@ -76,7 +76,7 @@ func (h *HTTP) handleCommand(handlers map[string]HandlerFunc, onWrite WriteFunc)
 		command := strings.ToUpper(args[0])
 		handler, ok := handlers[command]
 		if !ok {
-			writeJSON(w, http.StatusNotFound, map[string]interface{}{
+			writeJSON(w, http.StatusNotFound, map[string]any{
 				"ok": false, "error": fmt.Sprintf("unknown command: %s", command),
 			})
 			return
@@ -98,30 +98,30 @@ func (h *HTTP) handleCommand(handlers map[string]HandlerFunc, onWrite WriteFunc)
 	}
 }
 
-func respToJSON(v resp.Value) interface{} {
+func respToJSON(v resp.Value) any {
 	switch v.Type {
 	case resp.TypeString:
-		return map[string]interface{}{"ok": true, "value": v.Str}
+		return map[string]any{"ok": true, "value": v.Str}
 	case resp.TypeBulk:
-		return map[string]interface{}{"ok": true, "value": v.Bulk}
+		return map[string]any{"ok": true, "value": v.Bulk}
 	case resp.TypeNull:
-		return map[string]interface{}{"ok": true, "value": nil}
+		return map[string]any{"ok": true, "value": nil}
 	case resp.TypeError:
-		return map[string]interface{}{"ok": false, "error": v.Str}
+		return map[string]any{"ok": false, "error": v.Str}
 	case resp.TypeInteger:
-		return map[string]interface{}{"ok": true, "value": v.Num}
+		return map[string]any{"ok": true, "value": v.Num}
 	case resp.TypeArray:
-		arr := make([]interface{}, len(v.Array))
+		arr := make([]any, len(v.Array))
 		for i, item := range v.Array {
 			arr[i] = respToJSON(item)
 		}
-		return map[string]interface{}{"ok": true, "value": arr}
+		return map[string]any{"ok": true, "value": arr}
 	default:
-		return map[string]interface{}{"ok": true, "value": nil}
+		return map[string]any{"ok": true, "value": nil}
 	}
 }
 
-func writeJSON(w http.ResponseWriter, status int, v interface{}) {
+func writeJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(v)

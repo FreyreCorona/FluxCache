@@ -55,7 +55,7 @@ func (s *SyncMapStore) HGetAll(hash string) map[string]string {
 		return nil
 	}
 	out := make(map[string]string)
-	h.(*sync.Map).Range(func(key, val interface{}) bool {
+	h.(*sync.Map).Range(func(key, val any) bool {
 		k, _ := key.(string)
 		v, _ := val.(string)
 		out[k] = v

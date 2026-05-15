@@ -65,7 +65,7 @@ func unmarshalCommand(data []byte) (Command, []byte) {
 	argCount := binary.BigEndian.Uint16(data[off:])
 	off += 2
 	args := make([]string, 0, argCount)
-	for i := uint16(0); i < argCount; i++ {
+	for range argCount {
 		if off+4 > len(data) {
 			return Command{}, data
 		}

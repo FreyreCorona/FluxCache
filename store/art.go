@@ -1,6 +1,7 @@
 package store
 
 import (
+	"maps"
 	"sort"
 	"strings"
 	"sync"
@@ -430,9 +431,7 @@ func (s *ARTStore) HGetAll(hash string) map[string]string {
 		return nil
 	}
 	out := make(map[string]string, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
+	maps.Copy(out, m)
 	return out
 }
 
@@ -540,11 +539,4 @@ func (s *ARTStore) collectRange(n *artNode, start, end string, out *[]string) {
 			s.collectRange(child, start, end, out)
 		}
 	}
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

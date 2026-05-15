@@ -1,5 +1,7 @@
 package store
 
+import "maps"
+
 import "sync"
 
 type crdtValue struct {
@@ -86,9 +88,7 @@ func (s *CRDTStore) Merge(other *CRDTStore) {
 		if _, ok := s.hashes[hash]; !ok {
 			s.hashes[hash] = make(map[string]string)
 		}
-		for k, v := range inner {
-			s.hashes[hash][k] = v
-		}
+		maps.Copy(s.hashes[hash], inner)
 		s.mu.Unlock()
 	}
 	other.mu.RUnlock()
@@ -98,9 +98,7 @@ func (s *CRDTStore) Merge(other *CRDTStore) {
 func (s *CRDTStore) Snapshot() map[string]crdtValue {
 	s.mu.RLock()
 	out := make(map[string]crdtValue, len(s.data))
-	for k, v := range s.data {
-		out[k] = v
-	}
+	maps.Copy(out, s.data)
 	s.mu.RUnlock()
 	return out
 }
@@ -134,9 +132,7 @@ func (s *CRDTStore) HGetAll(hash string) map[string]string {
 		return nil
 	}
 	out := make(map[string]string, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
+	maps.Copy(out, m)
 	s.mu.RUnlock()
 	return out
 }

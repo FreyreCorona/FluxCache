@@ -127,7 +127,7 @@ func BenchmarkCRDTStoreHGetAll(b *testing.B) {
 func BenchmarkCRDTStoreMerge(b *testing.B) {
 	src := store.NewCRDTStore()
 	dst := store.NewCRDTStore()
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		src.Set(fmt.Sprintf("key-a-%d", i), "val")
 		dst.Set(fmt.Sprintf("key-b-%d", i), "val")
 	}

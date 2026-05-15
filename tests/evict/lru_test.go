@@ -33,7 +33,7 @@ func TestEvictionMaxKeysZero(t *testing.T) {
 	ts := store.NewTTLStore(inner)
 	ts.SetEvictionPolicy(evict.NewLRUPolicy(), 0)
 
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		ts.Set(string(rune('a'+i%26)), "v")
 	}
 	_ = ts

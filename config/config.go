@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"slices"
 	"strconv"
 	"time"
 
@@ -88,19 +89,14 @@ func (c *Config) Save(path string) error {
 }
 
 var (
-	validNetworks     = []string{"tcp", "tls", "unix", "http", "grpc"}
-	validStores       = []string{"map", "sharded", "syncmap", "lockfree", "skiplist", "bptree", "art", "crdt", "bitcask"}
-	validPersistence  = []string{"null", "aof", "wal", "rdb", "dual"}
-	validEvictions    = []string{"noeviction", "allkeys-lru", "allkeys-lfu", "allkeys-random", "volatile-ttl"}
+	validNetworks    = []string{"tcp", "tls", "unix", "http", "grpc"}
+	validStores      = []string{"map", "sharded", "syncmap", "lockfree", "skiplist", "bptree", "art", "crdt", "bitcask"}
+	validPersistence = []string{"null", "aof", "wal", "rdb", "dual"}
+	validEvictions   = []string{"noeviction", "allkeys-lru", "allkeys-lfu", "allkeys-random", "volatile-ttl"}
 )
 
 func in(list []string, s string) bool {
-	for _, v := range list {
-		if v == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, s)
 }
 
 // Validate checks all configuration fields and returns an error if any are invalid.

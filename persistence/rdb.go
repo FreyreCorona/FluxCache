@@ -12,12 +12,12 @@ const rdbVersion uint32 = 1
 
 // RDB implements periodic snapshot persistence to a binary file.
 type RDB struct {
-	mu        sync.Mutex
-	path      string
-	strings   map[string]string
-	hashes    map[string]map[string]string
-	interval  time.Duration
-	done      chan struct{}
+	mu       sync.Mutex
+	path     string
+	strings  map[string]string
+	hashes   map[string]map[string]string
+	interval time.Duration
+	done     chan struct{}
 }
 
 // NewRDB creates an RDB snapshotter with a default 5-second interval.
@@ -168,7 +168,7 @@ func (r *RDB) Replay(fn func(Command)) error {
 	}
 	strCount := binary.BigEndian.Uint32(strCountBuf)
 
-	for i := uint32(0); i < strCount; i++ {
+	for range strCount {
 		k := readString(f)
 		v := readString(f)
 		if k == "" && v == "" {
@@ -183,14 +183,14 @@ func (r *RDB) Replay(fn func(Command)) error {
 	}
 	hashCount := binary.BigEndian.Uint32(hashCountBuf)
 
-	for i := uint32(0); i < hashCount; i++ {
+	for range hashCount {
 		hk := readString(f)
 		fieldCountBuf := make([]byte, 4)
 		if _, err := f.Read(fieldCountBuf); err != nil {
 			return err
 		}
 		fieldCount := binary.BigEndian.Uint32(fieldCountBuf)
-		for j := uint32(0); j < fieldCount; j++ {
+		for range fieldCount {
 			fk := readString(f)
 			fv := readString(f)
 			fn(Command{Name: "HSET", Args: []string{hk, fk, fv}})

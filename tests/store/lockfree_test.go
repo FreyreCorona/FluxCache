@@ -28,7 +28,7 @@ func BenchmarkLockFreeStoreSet(b *testing.B) {
 
 func BenchmarkLockFreeStoreGet(b *testing.B) {
 	s := store.NewLockFreeStore(256)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		s.Set(fmt.Sprintf("key-%d", i), "val")
 	}
 

@@ -1,5 +1,7 @@
 package store
 
+import "maps"
+
 import "sync"
 
 // MapStore is a thread-safe in-memory store backed by Go maps.
@@ -66,9 +68,7 @@ func (s *MapStore) HGetAll(hash string) map[string]string {
 		return nil
 	}
 	out := make(map[string]string, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
+	maps.Copy(out, m)
 	s.mu.RUnlock()
 	return out
 }

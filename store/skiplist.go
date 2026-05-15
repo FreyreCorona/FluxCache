@@ -1,6 +1,7 @@
 package store
 
 import (
+	"maps"
 	"math/rand/v2"
 	"strings"
 	"sync"
@@ -146,9 +147,7 @@ func (s *SkipListStore) HGetAll(hash string) map[string]string {
 		return nil
 	}
 	out := make(map[string]string, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
+	maps.Copy(out, m)
 	return out
 }
 

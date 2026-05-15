@@ -17,14 +17,14 @@ func TestHTTPRoundtrip(t *testing.T) {
 
 	url := fmt.Sprintf("http://%s/", n.Addr().String())
 
-	do := func(args []string) map[string]interface{} {
+	do := func(args []string) map[string]any {
 		body, _ := json.Marshal(args)
 		resp, err := http.Post(url, "application/json", bytes.NewReader(body))
 		if err != nil {
 			t.Fatal(err)
 		}
 		defer resp.Body.Close()
-		var result map[string]interface{}
+		var result map[string]any
 		json.NewDecoder(resp.Body).Decode(&result)
 		return result
 	}
@@ -61,7 +61,7 @@ func TestHTTPUnknownCommand(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer resp.Body.Close()
-	var r map[string]interface{}
+	var r map[string]any
 	json.NewDecoder(resp.Body).Decode(&r)
 	if r["ok"] != false {
 		t.Fatalf("expected error, got %+v", r)

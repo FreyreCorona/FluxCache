@@ -2,6 +2,7 @@ package store
 
 import (
 	"hash/fnv"
+	"maps"
 	"sync"
 )
 
@@ -96,9 +97,7 @@ func (s *ShardedStore) HGetAll(hash string) map[string]string {
 		return nil
 	}
 	out := make(map[string]string, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
+	maps.Copy(out, m)
 	sh.mu.RUnlock()
 	return out
 }
