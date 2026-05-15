@@ -14,8 +14,9 @@ const (
 	TypeArray  = "array"
 	TypeBulk   = "bulk"
 	TypeString = "string"
-	TypeNull   = "null"
-	TypeError  = "error"
+	TypeNull    = "null"
+	TypeError   = "error"
+	TypeInteger = "integer"
 )
 
 type Value struct {
@@ -38,6 +39,8 @@ func (v Value) Marshal() []byte {
 		return v.marshallNull()
 	case TypeError:
 		return v.marshallError()
+	case TypeInteger:
+		return v.marshalInteger()
 	default:
 		return []byte{}
 	}
@@ -82,4 +85,12 @@ func (v Value) marshallError() []byte {
 
 func (v Value) marshallNull() []byte {
 	return []byte("$-1\r\n")
+}
+
+func (v Value) marshalInteger() []byte {
+	var bytes []byte
+	bytes = append(bytes, INTEGER)
+	bytes = append(bytes, strconv.Itoa(v.Num)...)
+	bytes = append(bytes, '\r', '\n')
+	return bytes
 }
