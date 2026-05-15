@@ -411,3 +411,75 @@ func BenchmarkARTStoreHGetAll(b *testing.B) {
 		s.HGetAll("benchhash")
 	}
 }
+
+func BenchmarkCRDTStoreSet(b *testing.B) {
+	s := store.NewCRDTStore()
+	keys := make([]string, b.N)
+	vals := make([]string, b.N)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("key-%d", i)
+		vals[i] = fmt.Sprintf("val-%d", i)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.Set(keys[i], vals[i])
+	}
+}
+
+func BenchmarkCRDTStoreGet(b *testing.B) {
+	s := store.NewCRDTStore()
+	keys := make([]string, b.N)
+	for i := range keys {
+		keys[i] = fmt.Sprintf("key-%d", i)
+		s.Set(keys[i], "val")
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.Get(keys[i])
+	}
+}
+
+func BenchmarkCRDTStoreHSet(b *testing.B) {
+	s := store.NewCRDTStore()
+	hashes := make([]string, b.N)
+	fields := make([]string, b.N)
+	vals := make([]string, b.N)
+	for i := range hashes {
+		hashes[i] = fmt.Sprintf("hash-%d", i%100)
+		fields[i] = fmt.Sprintf("field-%d", i)
+		vals[i] = fmt.Sprintf("val-%d", i)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.HSet(hashes[i], fields[i], vals[i])
+	}
+}
+
+func BenchmarkCRDTStoreHGetAll(b *testing.B) {
+	s := store.NewCRDTStore()
+	s.HSet("benchhash", "a", "1")
+	s.HSet("benchhash", "b", "2")
+	s.HSet("benchhash", "c", "3")
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		s.HGetAll("benchhash")
+	}
+}
+
+func BenchmarkCRDTStoreMerge(b *testing.B) {
+	src := store.NewCRDTStore()
+	dst := store.NewCRDTStore()
+	for i := 0; i < 1000; i++ {
+		src.Set(fmt.Sprintf("key-a-%d", i), "val")
+		dst.Set(fmt.Sprintf("key-b-%d", i), "val")
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		dst.Merge(src)
+	}
+}

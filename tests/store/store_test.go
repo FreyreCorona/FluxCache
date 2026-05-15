@@ -156,10 +156,69 @@ func TestSkipListStore(t *testing.T) {
 	testStore(t, func() store.Store { return store.NewSkipListStore() })
 }
 
+func TestCRDTStoreMerge(t *testing.T) {
+	a := store.NewCRDTStore()
+	b := store.NewCRDTStore()
+
+	a.Set("a", "from-a")
+	a.Set("b", "from-a")
+	b.Set("b", "from-b") // same key, should be won by whoever has higher TS
+	b.Set("c", "from-b")
+
+	a.Merge(b)
+
+	val, ok := a.Get("a")
+	if !ok || val != "from-a" {
+		t.Fatalf("expected 'from-a', got '%s'", val)
+	}
+
+	val, ok = a.Get("c")
+	if !ok || val != "from-b" {
+		t.Fatalf("expected 'from-b', got '%s'", val)
+	}
+}
+
+func TestCRDTStoreSetWithTS(t *testing.T) {
+	s := store.NewCRDTStore()
+
+	s.SetWithTS("key", "first", 10)
+	val, ok := s.Get("key")
+	if !ok || val != "first" {
+		t.Fatalf("expected 'first', got '%s'", val)
+	}
+
+	s.SetWithTS("key", "second", 5)
+	val, _ = s.Get("key")
+	if val != "first" {
+		t.Fatalf("expected 'first' (higher ts wins), got '%s'", val)
+	}
+
+	s.SetWithTS("key", "third", 20)
+	val, _ = s.Get("key")
+	if val != "third" {
+		t.Fatalf("expected 'third' (higher ts wins), got '%s'", val)
+	}
+}
+
+func TestCRDTStoreSnapshot(t *testing.T) {
+	s := store.NewCRDTStore()
+	s.Set("k1", "v1")
+	s.Set("k2", "v2")
+
+	snap := s.Snapshot()
+	if len(snap) != 2 {
+		t.Fatalf("expected 2 entries, got %d", len(snap))
+	}
+}
+
 func TestBPTreeStore(t *testing.T) {
 	testStore(t, func() store.Store { return store.NewBPTreeStore() })
 }
 
 func TestARTStore(t *testing.T) {
 	testStore(t, func() store.Store { return store.NewARTStore() })
+}
+
+func TestCRDTStore(t *testing.T) {
+	testStore(t, func() store.Store { return store.NewCRDTStore() })
 }
