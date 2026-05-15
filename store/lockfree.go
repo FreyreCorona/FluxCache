@@ -67,6 +67,19 @@ func (s *LockFreeStore) Set(key, value string) {
 	}
 }
 
+func (s *LockFreeStore) Del(key string) {
+	b := s.bucket(key)
+	for {
+		old := b.Load()
+		data := cloneBucket(old)
+		delete(data.strings, key)
+		delete(data.hashes, key)
+		if b.CompareAndSwap(old, data) {
+			return
+		}
+	}
+}
+
 func (s *LockFreeStore) Get(key string) (string, bool) {
 	b := s.bucket(key)
 	data := b.Load()

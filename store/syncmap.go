@@ -15,6 +15,11 @@ func (s *SyncMapStore) Set(key, value string) {
 	s.strings.Store(key, value)
 }
 
+func (s *SyncMapStore) Del(key string) {
+	s.strings.Delete(key)
+	s.hashes.Delete(key)
+}
+
 func (s *SyncMapStore) Get(key string) (string, bool) {
 	val, ok := s.strings.Load(key)
 	if !ok {

@@ -47,6 +47,19 @@ func (s *BPTreeStore) searchLeaf(key string) *bpNode {
 	return n
 }
 
+func (s *BPTreeStore) Del(key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	leaf := s.searchLeaf(key)
+	idx := sort.Search(len(leaf.keys), func(i int) bool { return leaf.keys[i] >= key })
+	if idx < len(leaf.keys) && leaf.keys[idx] == key {
+		leaf.keys = append(leaf.keys[:idx], leaf.keys[idx+1:]...)
+		leaf.values = append(leaf.values[:idx], leaf.values[idx+1:]...)
+	}
+	delete(s.hashes, key)
+}
+
 func (s *BPTreeStore) Get(key string) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

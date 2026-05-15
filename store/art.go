@@ -39,6 +39,84 @@ func NewARTStore() *ARTStore {
 	return &ARTStore{hashes: make(map[string]map[string]string)}
 }
 
+func (s *ARTStore) removeChild(n *artNode, b byte) {
+	switch n.nodeType {
+	case artNode4, artNode16:
+		for i, k := range n.keys {
+			if k == b {
+				n.keys = append(n.keys[:i], n.keys[i+1:]...)
+				n.children = append(n.children[:i], n.children[i+1:]...)
+				return
+			}
+		}
+	case artNode48:
+		if idx := n.index[b]; idx != artEmptyIndex {
+			n.index[b] = artEmptyIndex
+		}
+	case artNode256:
+		n.children[b] = nil
+	}
+}
+
+func (s *ARTStore) delNode(n *artNode, key string, depth int) *artNode {
+	if n == nil {
+		return nil
+	}
+	if n.leaf != nil {
+		if n.leaf.key == key {
+			return nil
+		}
+		return n
+	}
+
+	if n.prefix != nil {
+		pxLen := len(n.prefix)
+		if depth+pxLen > len(key) || key[depth:depth+pxLen] != string(n.prefix) {
+			return n
+		}
+		depth += pxLen
+	}
+
+	var b byte
+	if depth < len(key) {
+		b = key[depth]
+	}
+
+	child := s.findChild(n, b)
+	if child == nil {
+		child = s.findChild(n, 0)
+	}
+	if child == nil {
+		return n
+	}
+
+	if depth < len(key) {
+		child = s.delNode(child, key, depth+1)
+	} else {
+		child = s.delNode(child, key, depth)
+	}
+
+	if child == nil {
+		s.removeChild(n, b)
+	}
+
+	if len(n.children) == 0 && n.leaf == nil {
+		return nil
+	}
+	return n
+}
+
+func (s *ARTStore) Del(key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	delete(s.hashes, key)
+	if s.root == nil {
+		return
+	}
+	s.root = s.delNode(s.root, key, 0)
+}
+
 func (s *ARTStore) Get(key string) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

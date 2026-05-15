@@ -21,6 +21,13 @@ func (s *MapStore) Set(key, value string) {
 	s.mu.Unlock()
 }
 
+func (s *MapStore) Del(key string) {
+	s.mu.Lock()
+	delete(s.strings, key)
+	delete(s.hashes, key)
+	s.mu.Unlock()
+}
+
 func (s *MapStore) Get(key string) (string, bool) {
 	s.mu.RLock()
 	val, ok := s.strings[key]

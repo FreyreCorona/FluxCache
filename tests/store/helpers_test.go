@@ -43,6 +43,26 @@ func testStore(t *testing.T, newStore func() store.Store) {
 		}
 	})
 
+	t.Run("Del", func(t *testing.T) {
+		s := newStore()
+		s.Set("tmp", "val")
+		s.Del("tmp")
+		_, ok := s.Get("tmp")
+		if ok {
+			t.Fatal("expected deleted key to return false")
+		}
+	})
+
+	t.Run("DelHash", func(t *testing.T) {
+		s := newStore()
+		s.HSet("h", "f", "v")
+		s.Del("h")
+		_, ok := s.HGet("h", "f")
+		if ok {
+			t.Fatal("expected deleted hash to return false")
+		}
+	})
+
 	t.Run("HSetHGet", func(t *testing.T) {
 		s := newStore()
 		s.HSet("hash1", "name", "alice")

@@ -46,6 +46,14 @@ func (s *ShardedStore) Set(key, value string) {
 	sh.mu.Unlock()
 }
 
+func (s *ShardedStore) Del(key string) {
+	sh := s.getShard(key)
+	sh.mu.Lock()
+	delete(sh.strings, key)
+	delete(sh.hashes, key)
+	sh.mu.Unlock()
+}
+
 func (s *ShardedStore) Get(key string) (string, bool) {
 	sh := s.getShard(key)
 	sh.mu.RLock()

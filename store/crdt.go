@@ -33,6 +33,13 @@ func (s *CRDTStore) Set(key, value string) {
 	s.mu.Unlock()
 }
 
+func (s *CRDTStore) Del(key string) {
+	s.mu.Lock()
+	delete(s.data, key)
+	delete(s.hashes, key)
+	s.mu.Unlock()
+}
+
 func (s *CRDTStore) Get(key string) (string, bool) {
 	s.mu.RLock()
 	v, ok := s.data[key]

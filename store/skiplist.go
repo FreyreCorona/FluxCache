@@ -74,6 +74,27 @@ func (s *SkipListStore) Set(key, value string) {
 	}
 }
 
+func (s *SkipListStore) Del(key string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	prev := make([]*skipNode, skipMaxLevel)
+	curr := s.head
+	for i := s.level - 1; i >= 0; i-- {
+		for curr.next[i] != nil && curr.next[i].key < key {
+			curr = curr.next[i]
+		}
+		prev[i] = curr
+	}
+	curr = curr.next[0]
+	if curr != nil && curr.key == key {
+		for i := 0; i < len(curr.next); i++ {
+			prev[i].next[i] = curr.next[i]
+		}
+	}
+	delete(s.hashes, key)
+}
+
 func (s *SkipListStore) Get(key string) (string, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
