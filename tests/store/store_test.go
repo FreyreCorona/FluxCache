@@ -143,3 +143,7 @@ func TestMapStore(t *testing.T) {
 func TestShardedStore(t *testing.T) {
 	testStore(t, func() store.Store { return store.NewShardedStore(16) })
 }
+
+func TestSyncMapStore(t *testing.T) {
+	testStore(t, func() store.Store { return store.NewSyncMapStore() })
+}
