@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/FreyreCorona/FluxCache/log"
 )
 
 // StartServer serves /healthz and /ready HTTP endpoints on the given port until ctx is cancelled.
@@ -28,8 +30,8 @@ func StartServer(port int, ctx context.Context) {
 		srv.Close()
 	}()
 
-	fmt.Printf("Health endpoint on :%d (/healthz, /ready)\n", port)
+	log.Info("health endpoint", "port", port)
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		fmt.Printf("health: %v\n", err)
+		log.Error("health server error", "error", err)
 	}
 }

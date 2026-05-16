@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
 	"runtime/debug"
@@ -11,6 +10,7 @@ import (
 	"github.com/FreyreCorona/FluxCache/config"
 	"github.com/FreyreCorona/FluxCache/handler"
 	"github.com/FreyreCorona/FluxCache/health"
+	"github.com/FreyreCorona/FluxCache/log"
 	"github.com/FreyreCorona/FluxCache/persistence"
 	"github.com/FreyreCorona/FluxCache/resp"
 )
@@ -30,7 +30,7 @@ func main() {
 
 	cfg, err := config.Load(cfgPath)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("config load failed", "error", err)
 		os.Exit(1)
 	}
 
@@ -41,7 +41,7 @@ func main() {
 
 	s, p, err := config.Build(cfg)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("config build failed", "error", err)
 		os.Exit(1)
 	}
 
@@ -62,7 +62,7 @@ func main() {
 
 	n, err := config.BuildNetwork(cfg.Server)
 	if err != nil {
-		fmt.Println(err)
+		log.Error("network build failed", "error", err)
 		os.Exit(1)
 	}
 
@@ -73,7 +73,7 @@ func main() {
 		go health.StartServer(cfg.Server.HealthPort, ctx)
 	}
 
-	fmt.Printf("Listening on port %d\n", cfg.Server.Port)
+	log.Info("listening", "port", cfg.Server.Port)
 
 	errCh := make(chan error, 1)
 	go func() {
@@ -90,10 +90,10 @@ func main() {
 
 	select {
 	case <-ctx.Done():
-		fmt.Println("\nshutting down...")
+		log.Info("shutting down")
 	case err := <-errCh:
 		if err != nil {
-			fmt.Println(err)
+			log.Error("server error", "error", err)
 		}
 	}
 
@@ -101,5 +101,5 @@ func main() {
 	<-errCh
 	p.Close()
 	s.Close()
-	fmt.Println("done")
+	log.Info("shutdown complete")
 }
