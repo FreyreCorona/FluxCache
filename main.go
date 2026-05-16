@@ -21,6 +21,9 @@ var version string
 // main loads the config, builds the store/persistence/network, and starts the server with graceful shutdown.
 func main() {
 	cfgPath := "config.yaml"
+	if v, ok := os.LookupEnv("FLUXCACHE_CONFIG"); ok {
+		cfgPath = v
+	}
 	if len(os.Args) > 1 {
 		cfgPath = os.Args[1]
 	}

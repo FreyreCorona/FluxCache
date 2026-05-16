@@ -58,6 +58,95 @@ type EvictionConfig struct {
 	MaxKeys int    `yaml:"maxkeys"`
 }
 
+// FromEnv overrides config fields from environment variables with the FLUXCACHE_ prefix.
+// Env vars take precedence over YAML values, making this K8s-friendly.
+func (c *Config) FromEnv() {
+	if v, ok := os.LookupEnv("FLUXCACHE_PORT"); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Server.Port = n
+		}
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_NETWORK"); ok {
+		c.Server.Network = v
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_HEALTH_PORT"); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Server.HealthPort = n
+		}
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_MAX_CONNECTIONS"); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Server.MaxConns = n
+		}
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_MAX_MEMORY"); ok {
+		c.Server.MaxMemory = v
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_CERT_FILE"); ok {
+		c.Server.CertFile = v
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_KEY_FILE"); ok {
+		c.Server.KeyFile = v
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_SOCKET_PATH"); ok {
+		c.Server.SocketPath = v
+	}
+
+	if v, ok := os.LookupEnv("FLUXCACHE_STORE_TYPE"); ok {
+		c.Store.Type = v
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_STORE_FILE"); ok {
+		c.Store.File = v
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_SHARD_COUNT"); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Store.ShardCount = n
+		}
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_DEGREE"); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Store.Degree = n
+		}
+	}
+
+	if v, ok := os.LookupEnv("FLUXCACHE_PERSISTENCE_TYPE"); ok {
+		c.Persistence.Type = v
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_PERSISTENCE_FILE"); ok {
+		c.Persistence.File = v
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_PERSISTENCE_INTERVAL"); ok {
+		c.Persistence.Interval = v
+	}
+
+	if c.Persistence.Primary != nil {
+		if v, ok := os.LookupEnv("FLUXCACHE_PERSISTENCE_PRIMARY_TYPE"); ok {
+			c.Persistence.Primary.Type = v
+		}
+		if v, ok := os.LookupEnv("FLUXCACHE_PERSISTENCE_PRIMARY_FILE"); ok {
+			c.Persistence.Primary.File = v
+		}
+	}
+
+	if c.Persistence.Secondary != nil {
+		if v, ok := os.LookupEnv("FLUXCACHE_PERSISTENCE_SECONDARY_TYPE"); ok {
+			c.Persistence.Secondary.Type = v
+		}
+		if v, ok := os.LookupEnv("FLUXCACHE_PERSISTENCE_SECONDARY_FILE"); ok {
+			c.Persistence.Secondary.File = v
+		}
+	}
+
+	if v, ok := os.LookupEnv("FLUXCACHE_EVICTION_POLICY"); ok {
+		c.Eviction.Policy = v
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_MAX_KEYS"); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Eviction.MaxKeys = n
+		}
+	}
+}
+
 // Default returns a new Config with sensible defaults.
 func Default() *Config {
 	return &Config{
@@ -173,6 +262,8 @@ func Load(path string) (*Config, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("config: parse: %w", err)
 	}
+	cfg.FromEnv()
+
 	if cfg.Server.Port == 0 {
 		cfg.Server.Port = 6379
 	}
