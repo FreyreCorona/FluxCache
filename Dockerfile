@@ -5,8 +5,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /fluxcache .
 
-FROM alpine:3.22
-RUN apk add --no-cache tzdata ca-certificates
+FROM scratch
 COPY --from=builder /fluxcache /fluxcache
 VOLUME /data
 EXPOSE 6379 8081
