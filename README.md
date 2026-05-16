@@ -1,10 +1,10 @@
 # FluxCache
 
-Key-value store en Go inspirado en Redis, construido con composición explícita y configuración declarativa.
+Key-value store in Go inspired by Redis, built with explicit composition and declarative configuration.
 
 ---
 
-## Arquitectura
+## Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -19,48 +19,48 @@ Key-value store en Go inspirado en Redis, construido con composición explícita
 │  9 impls   │  5 policies      │  5 impls    │
 ├────────────┴──────────────────┴─────────────┤
 │           Cluster / Replication             │
-│          (próximo)                          │
+│          (next)                             │
 └─────────────────────────────────────────────┘
 ```
 
-## Componentes
+## Components
 
 ### Store
-| Store | Concurrencia | Ideal para |
+| Store | Concurrency | Ideal for |
 |---|---|---|
-| `MapStore` | `sync.RWMutex` global | Prototipos, baja contención |
-| `ShardedStore` | hash → shard con RWMutex propio | Alta concurrencia general |
-| `SyncMapStore` | `sync.Map` | Reads-heavy, keys estables |
-| `LockFreeStore` | `atomic.Pointer` + copy-on-write CAS | Escrituras esporádicas |
-| `SkipListStore` | Concurrent skip list + `OrderedStore` | Rangos ordenados |
-| `BPTreeStore` | B+Tree con mutex por nodo + `OrderedStore` | Rangos + persists |
+| `MapStore` | Global `sync.RWMutex` | Prototypes, low contention |
+| `ShardedStore` | hash → shard with own RWMutex | General high concurrency |
+| `SyncMapStore` | `sync.Map` | Reads-heavy, stable keys |
+| `LockFreeStore` | `atomic.Pointer` + copy-on-write CAS | Sparse writes |
+| `SkipListStore` | Concurrent skip list + `OrderedStore` | Sorted ranges |
+| `BPTreeStore` | B+Tree with per-node mutex + `OrderedStore` | Ranges + persistence |
 | `ARTStore` | Adaptive Radix Tree + `OrderedStore` | Prefix-heavy |
-| `CRDTStore` | LWW versioned pairs | Replicación |
-| `BitcaskStore` | `sync.RWMutex` + append-only log | Auto-persistente |
+| `CRDTStore` | LWW versioned pairs | Replication |
+| `BitcaskStore` | `sync.RWMutex` + append-only log | Auto-persistent |
 
-`TTLStore` envuelve cualquier Store sumando expiración (lazy + active sweep) y evicción.
+`TTLStore` wraps any Store adding expiration (lazy + active sweep) and eviction.
 
 ### Eviction
-- `allkeys-lru`, `allkeys-lfu`, `allkeys-random` — sobre todas las keys
-- `volatile-ttl` — solo keys con TTL
+- `allkeys-lru`, `allkeys-lfu`, `allkeys-random` — over all keys
+- `volatile-ttl` — only keys with TTL
 - `noeviction`
 
 ### Persistence
-- `AOF` — append-only log de comandos
-- `WAL` — write-ahead log binario con batch commit
-- `RDB` — snapshot binario periódico
-- `Dual` — compone dos persistences (ej: AOF + RDB)
-- `Null` — no persistencia
-- `BitcaskStore` — store + persistencia en uno (no necesita persistence aparte)
+- `AOF` — append-only command log
+- `WAL` — binary write-ahead log with batch commit
+- `RDB` — periodic binary snapshot
+- `Dual` — composes two persistences (e.g. AOF + RDB)
+- `Null` — no persistence
+- `BitcaskStore` — store + persistence in one (no separate persistence needed)
 
 ### Network
-| Transport | Protocolo | Uso |
+| Transport | Protocol | Usage |
 |---|---|---|
-| `TCP` | RESP | redis-cli, clients estándar |
-| `TLS` | RESP sobre TLS | Conexiones seguras |
-| `Unix` | RESP sobre Unix socket | Comunicación local |
+| `TCP` | RESP | redis-cli, standard clients |
+| `TLS` | RESP over TLS | Secure connections |
+| `Unix` | RESP over Unix socket | Local communication |
 | `HTTP` | JSON (POST /) | REST clients |
-| `gRPC` | Protobuf (Exec RPC) | Microservicios |
+| `gRPC` | Protobuf (Exec RPC) | Microservices |
 
 ### Config
 
@@ -87,22 +87,22 @@ eviction:
   maxkeys: 0
 ```
 
-## Estado
+## Status
 
-- [x] RESP protocol + comandos (PING, SET, GET, HSET, HGET, HGETALL, EXPIRE, TTL, DEL)
+- [x] RESP protocol + commands (PING, SET, GET, HSET, HGET, HGETALL, EXPIRE, TTL, DEL)
 - [x] 9 Store implementations (Map, Sharded, SyncMap, LockFree, SkipList, BPTree, ART, CRDT, Bitcask)
 - [x] OrderedStore (PrefixKeys, RangeKeys)
 - [x] TTL + 5 eviction policies
 - [x] 5 Persistence implementations (AOF, WAL, RDB, Dual, Null)
 - [x] 5 Network transports (TCP, TLS, Unix, HTTP, gRPC)
-- [x] Config YAML con validación
-- [ ] Cluster / Hive (gossip, consistent hashing, replicación)
+- [x] YAML config with validation
+- [ ] Cluster / Hive (gossip, consistent hashing, replication)
 
-## Uso
+## Usage
 
 ```bash
-go run .              # usa config.yaml
-go run . mi-conf.yaml # o path personalizado
+go run .              # uses config.yaml
+go run . my-conf.yaml # or custom path
 ```
 
 ```bash
