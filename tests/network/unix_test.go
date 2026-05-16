@@ -11,7 +11,7 @@ import (
 
 func TestUnixRoundtrip(t *testing.T) {
 	path := fmt.Sprintf("%s/fluxcache_test.sock", t.TempDir())
-	n := network.NewUnix(path, 0)
+	n := network.NewUnix(path, 0, "")
 	setupNetwork(t, n)
 	defer n.Close()
 

@@ -7,7 +7,7 @@ import (
 )
 
 func TestTCPRoundtrip(t *testing.T) {
-	n := network.NewTCP(":0", 0)
+	n := network.NewTCP(":0", 0, "")
 	setupNetwork(t, n)
 	defer n.Close()
 
@@ -31,7 +31,7 @@ func TestTCPRoundtrip(t *testing.T) {
 }
 
 func TestTCPDel(t *testing.T) {
-	n := network.NewTCP(":0", 0)
+	n := network.NewTCP(":0", 0, "")
 	setupNetwork(t, n)
 	defer n.Close()
 
@@ -50,7 +50,7 @@ func TestTCPDel(t *testing.T) {
 }
 
 func BenchmarkTCPRoundtrip(b *testing.B) {
-	n := setupNetworkB(b, network.NewTCP(":0", 0))
+	n := setupNetworkB(b, network.NewTCP(":0", 0, ""))
 	defer n.Close()
 
 	c, err := respDial(n.Addr().String())

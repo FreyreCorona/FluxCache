@@ -13,13 +13,14 @@ import (
 type TCP struct {
 	addr     string
 	maxConns int
+	password string
 	sem      chan struct{}
 	ln       net.Listener
 }
 
 // NewTCP creates a new TCP transport that listens on the given address.
-func NewTCP(addr string, maxConns int) *TCP {
-	return &TCP{addr: addr, maxConns: maxConns}
+func NewTCP(addr string, maxConns int, password string) *TCP {
+	return &TCP{addr: addr, maxConns: maxConns, password: password}
 }
 
 // Listen starts the TCP listener and begins accepting connections.
@@ -61,6 +62,9 @@ func (t *TCP) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite
 		defer func() { <-t.sem }()
 	}
 
+	authenticated := t.password == ""
+	wr := resp.NewWriter(conn)
+
 	for {
 		rd := resp.NewResp(conn)
 		value, err := rd.Read()
@@ -75,6 +79,20 @@ func (t *TCP) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite
 		command := strings.ToUpper(value.Array[0].Bulk)
 		args := value.Array[1:]
 
+		if !authenticated {
+			if command == "AUTH" {
+				if len(args) >= 1 && args[0].Bulk == t.password {
+					authenticated = true
+					wr.Write(resp.Value{Type: resp.TypeString, Str: "OK"})
+				} else {
+					wr.Write(resp.Value{Type: resp.TypeError, Str: "ERR invalid password"})
+				}
+				continue
+			}
+			wr.Write(resp.Value{Type: resp.TypeError, Str: "NOAUTH Authentication required."})
+			continue
+		}
+
 		handler, ok := handlers[command]
 		if !ok {
 			continue
@@ -85,7 +103,6 @@ func (t *TCP) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite
 		}
 
 		result := handler(args)
-		wr := resp.NewWriter(conn)
 		wr.Write(result)
 	}
 }

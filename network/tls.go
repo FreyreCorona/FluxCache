@@ -15,6 +15,7 @@ type TLS struct {
 	addr     string
 	cert     string
 	key      string
+	password string
 	config   *tls.Config
 	maxConns int
 	sem      chan struct{}
@@ -22,8 +23,8 @@ type TLS struct {
 }
 
 // NewTLS creates a new TLS transport with the given certificate and key files.
-func NewTLS(addr, certFile, keyFile string, maxConns int) *TLS {
-	return &TLS{addr: addr, cert: certFile, key: keyFile, maxConns: maxConns}
+func NewTLS(addr, certFile, keyFile string, maxConns int, password string) *TLS {
+	return &TLS{addr: addr, cert: certFile, key: keyFile, maxConns: maxConns, password: password}
 }
 
 // Listen starts the TLS listener and begins accepting connections.
@@ -71,6 +72,9 @@ func (t *TLS) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite
 		defer func() { <-t.sem }()
 	}
 
+	authenticated := t.password == ""
+	wr := resp.NewWriter(conn)
+
 	for {
 		rd := resp.NewResp(conn)
 		value, err := rd.Read()
@@ -85,6 +89,20 @@ func (t *TLS) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite
 		command := strings.ToUpper(value.Array[0].Bulk)
 		args := value.Array[1:]
 
+		if !authenticated {
+			if command == "AUTH" {
+				if len(args) >= 1 && args[0].Bulk == t.password {
+					authenticated = true
+					wr.Write(resp.Value{Type: resp.TypeString, Str: "OK"})
+				} else {
+					wr.Write(resp.Value{Type: resp.TypeError, Str: "ERR invalid password"})
+				}
+				continue
+			}
+			wr.Write(resp.Value{Type: resp.TypeError, Str: "NOAUTH Authentication required."})
+			continue
+		}
+
 		handler, ok := handlers[command]
 		if !ok {
 			continue
@@ -95,7 +113,6 @@ func (t *TLS) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite
 		}
 
 		result := handler(args)
-		wr := resp.NewWriter(conn)
 		wr.Write(result)
 	}
 }

@@ -64,7 +64,7 @@ func TestTLSRoundtrip(t *testing.T) {
 	certPem, keyPem := generateTestCert(t)
 	certFile, keyFile := writeTempCert(t, certPem, keyPem)
 
-	n := network.NewTLS(":0", certFile, keyFile, 0)
+	n := network.NewTLS(":0", certFile, keyFile, 0, "")
 	setupNetwork(t, n)
 	defer n.Close()
 

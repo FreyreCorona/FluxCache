@@ -31,6 +31,7 @@ type ServerConfig struct {
 	MetricsPort int    `yaml:"metrics_port"`
 	MaxConns    int    `yaml:"max_connections"`
 	MaxMemory   string `yaml:"max_memory"`
+	Password    string `yaml:"password"`
 	CertFile    string `yaml:"cert_file"`
 	KeyFile     string `yaml:"key_file"`
 	SocketPath  string `yaml:"socket_path"`
@@ -87,6 +88,9 @@ func (c *Config) FromEnv() {
 	}
 	if v, ok := os.LookupEnv("FLUXCACHE_MAX_MEMORY"); ok {
 		c.Server.MaxMemory = v
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_PASSWORD"); ok {
+		c.Server.Password = v
 	}
 	if v, ok := os.LookupEnv("FLUXCACHE_CERT_FILE"); ok {
 		c.Server.CertFile = v
@@ -410,17 +414,17 @@ func Build(cfg *Config) (*store.TTLStore, persistence.Persistence, error) {
 func BuildNetwork(cfg ServerConfig) (network.Network, error) {
 	switch cfg.Network {
 	case "tcp":
-		return network.NewTCP(fmt.Sprintf(":%d", cfg.Port), cfg.MaxConns), nil
+		return network.NewTCP(fmt.Sprintf(":%d", cfg.Port), cfg.MaxConns, cfg.Password), nil
 	case "tls":
 		if cfg.CertFile == "" || cfg.KeyFile == "" {
 			return nil, fmt.Errorf("config: tls requires cert_file and key_file")
 		}
-		return network.NewTLS(fmt.Sprintf(":%d", cfg.Port), cfg.CertFile, cfg.KeyFile, cfg.MaxConns), nil
+		return network.NewTLS(fmt.Sprintf(":%d", cfg.Port), cfg.CertFile, cfg.KeyFile, cfg.MaxConns, cfg.Password), nil
 	case "unix":
 		if cfg.SocketPath == "" {
 			return nil, fmt.Errorf("config: unix requires socket_path")
 		}
-		return network.NewUnix(cfg.SocketPath, cfg.MaxConns), nil
+		return network.NewUnix(cfg.SocketPath, cfg.MaxConns, cfg.Password), nil
 	case "http":
 		return network.NewHTTP(fmt.Sprintf(":%d", cfg.Port)), nil
 	case "grpc":

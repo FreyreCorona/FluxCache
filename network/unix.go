@@ -14,13 +14,14 @@ import (
 type Unix struct {
 	path     string
 	maxConns int
+	password string
 	sem      chan struct{}
 	ln       net.Listener
 }
 
 // NewUnix creates a new Unix domain socket transport at the given path.
-func NewUnix(path string, maxConns int) *Unix {
-	return &Unix{path: path, maxConns: maxConns}
+func NewUnix(path string, maxConns int, password string) *Unix {
+	return &Unix{path: path, maxConns: maxConns, password: password}
 }
 
 // Listen starts the Unix socket listener and begins accepting connections.
@@ -64,6 +65,9 @@ func (u *Unix) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrit
 		defer func() { <-u.sem }()
 	}
 
+	authenticated := u.password == ""
+	wr := resp.NewWriter(conn)
+
 	for {
 		rd := resp.NewResp(conn)
 		value, err := rd.Read()
@@ -78,6 +82,20 @@ func (u *Unix) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrit
 		command := strings.ToUpper(value.Array[0].Bulk)
 		args := value.Array[1:]
 
+		if !authenticated {
+			if command == "AUTH" {
+				if len(args) >= 1 && args[0].Bulk == u.password {
+					authenticated = true
+					wr.Write(resp.Value{Type: resp.TypeString, Str: "OK"})
+				} else {
+					wr.Write(resp.Value{Type: resp.TypeError, Str: "ERR invalid password"})
+				}
+				continue
+			}
+			wr.Write(resp.Value{Type: resp.TypeError, Str: "NOAUTH Authentication required."})
+			continue
+		}
+
 		handler, ok := handlers[command]
 		if !ok {
 			continue
@@ -88,7 +106,6 @@ func (u *Unix) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrit
 		}
 
 		result := handler(args)
-		wr := resp.NewWriter(conn)
 		wr.Write(result)
 	}
 }
