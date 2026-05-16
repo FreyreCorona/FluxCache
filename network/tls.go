@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/FreyreCorona/FluxCache/resp"
+	"github.com/FreyreCorona/FluxCache/telemetry"
 )
 
 // TLS is a TLS-encrypted TCP network transport.
@@ -63,6 +64,8 @@ func (t *TLS) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
 }
 
 func (t *TLS) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite WriteFunc) {
+	telemetry.ActiveConnections.Inc()
+	defer telemetry.ActiveConnections.Dec()
 	defer conn.Close()
 	if t.sem != nil {
 		defer func() { <-t.sem }()

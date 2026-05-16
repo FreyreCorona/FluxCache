@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/FreyreCorona/FluxCache/resp"
+	"github.com/FreyreCorona/FluxCache/telemetry"
 )
 
 // TCP is a plain TCP network transport.
@@ -53,6 +54,8 @@ func (t *TCP) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error {
 }
 
 func (t *TCP) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite WriteFunc) {
+	telemetry.ActiveConnections.Inc()
+	defer telemetry.ActiveConnections.Dec()
 	defer conn.Close()
 	if t.sem != nil {
 		defer func() { <-t.sem }()

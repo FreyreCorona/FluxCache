@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/FreyreCorona/FluxCache/resp"
+	"github.com/FreyreCorona/FluxCache/telemetry"
 )
 
 // Unix is a Unix domain socket network transport.
@@ -56,6 +57,8 @@ func (u *Unix) Listen(handlers map[string]HandlerFunc, onWrite WriteFunc) error 
 }
 
 func (u *Unix) handleConn(conn net.Conn, handlers map[string]HandlerFunc, onWrite WriteFunc) {
+	telemetry.ActiveConnections.Inc()
+	defer telemetry.ActiveConnections.Dec()
 	defer conn.Close()
 	if u.sem != nil {
 		defer func() { <-u.sem }()

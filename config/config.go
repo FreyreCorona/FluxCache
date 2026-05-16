@@ -25,14 +25,15 @@ type Config struct {
 
 // ServerConfig configures the network server.
 type ServerConfig struct {
-	Port       int    `yaml:"port"`
-	Network    string `yaml:"network"`
-	HealthPort int    `yaml:"health_port"`
-	MaxConns   int    `yaml:"max_connections"`
-	MaxMemory  string `yaml:"max_memory"`
-	CertFile   string `yaml:"cert_file"`
-	KeyFile    string `yaml:"key_file"`
-	SocketPath string `yaml:"socket_path"`
+	Port        int    `yaml:"port"`
+	Network     string `yaml:"network"`
+	HealthPort  int    `yaml:"health_port"`
+	MetricsPort int    `yaml:"metrics_port"`
+	MaxConns    int    `yaml:"max_connections"`
+	MaxMemory   string `yaml:"max_memory"`
+	CertFile    string `yaml:"cert_file"`
+	KeyFile     string `yaml:"key_file"`
+	SocketPath  string `yaml:"socket_path"`
 }
 
 // StoreConfig configures the internal key-value store.
@@ -72,6 +73,11 @@ func (c *Config) FromEnv() {
 	if v, ok := os.LookupEnv("FLUXCACHE_HEALTH_PORT"); ok {
 		if n, err := strconv.Atoi(v); err == nil {
 			c.Server.HealthPort = n
+		}
+	}
+	if v, ok := os.LookupEnv("FLUXCACHE_METRICS_PORT"); ok {
+		if n, err := strconv.Atoi(v); err == nil {
+			c.Server.MetricsPort = n
 		}
 	}
 	if v, ok := os.LookupEnv("FLUXCACHE_MAX_CONNECTIONS"); ok {
@@ -195,6 +201,9 @@ func (c *Config) Validate() error {
 	}
 	if c.Server.HealthPort < 0 || c.Server.HealthPort > 65535 {
 		return fmt.Errorf("config: health_port %d out of range [0-65535]", c.Server.HealthPort)
+	}
+	if c.Server.MetricsPort < 0 || c.Server.MetricsPort > 65535 {
+		return fmt.Errorf("config: metrics_port %d out of range [0-65535]", c.Server.MetricsPort)
 	}
 	if c.Server.MaxConns < 0 {
 		return fmt.Errorf("config: max_connections must be >= 0")

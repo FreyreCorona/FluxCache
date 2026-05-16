@@ -6,6 +6,7 @@ import (
 	"os/signal"
 	"runtime/debug"
 	"syscall"
+	"time"
 
 	"github.com/FreyreCorona/FluxCache/config"
 	"github.com/FreyreCorona/FluxCache/handler"
@@ -13,10 +14,21 @@ import (
 	"github.com/FreyreCorona/FluxCache/log"
 	"github.com/FreyreCorona/FluxCache/persistence"
 	"github.com/FreyreCorona/FluxCache/resp"
+	"github.com/FreyreCorona/FluxCache/telemetry"
 )
 
 // version is set at build time via -ldflags=-X main.version=<tag>
 var version string
+
+func instrument(name string, h func([]resp.Value) resp.Value) func([]resp.Value) resp.Value {
+	return func(args []resp.Value) resp.Value {
+		start := time.Now()
+		result := h(args)
+		telemetry.CommandDuration.WithLabelValues(name).Observe(time.Since(start).Seconds())
+		telemetry.CommandsTotal.WithLabelValues(name).Inc()
+		return result
+	}
+}
 
 // main loads the config, builds the store/persistence/network, and starts the server with graceful shutdown.
 func main() {
@@ -59,6 +71,10 @@ func main() {
 	})
 
 	handlers := handler.NewHandlers(s)
+	for name, h := range handlers {
+		h := h
+		handlers[name] = instrument(name, h)
+	}
 
 	n, err := config.BuildNetwork(cfg.Server)
 	if err != nil {
@@ -71,6 +87,11 @@ func main() {
 
 	if cfg.Server.HealthPort > 0 {
 		go health.StartServer(cfg.Server.HealthPort, ctx)
+	}
+
+	if cfg.Server.MetricsPort > 0 {
+		go telemetry.StartServer(cfg.Server.MetricsPort, ctx)
+		telemetry.NewCollector(s.KeyCount).Start()
 	}
 
 	log.Info("listening", "port", cfg.Server.Port)

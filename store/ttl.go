@@ -221,3 +221,10 @@ func (t *TTLStore) Close() error {
 	close(t.done)
 	return t.inner.Close()
 }
+
+// KeyCount returns the total number of keys currently tracked.
+func (t *TTLStore) KeyCount() int {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return len(t.allKeys)
+}
